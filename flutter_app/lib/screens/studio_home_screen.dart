@@ -919,47 +919,6 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
           ],
         ],
         const SizedBox(height: 12),
-        const Divider(height: 1),
-        const SizedBox(height: 10),
-        _secHeader(tr(l, 'THÔNG TIN TÁC GIẢ', 'AUTHOR INFORMATION'), Icons.badge_outlined),
-        const SizedBox(height: 6),
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: dark ? const Color(0xFF0F1D36) : const Color(0xFFF1F5F9),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFF06B6D4).withValues(alpha: 0.4)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                tr(l, 'Võ Thanh Vang (MSHV: 2670624)', 'Vo Thanh Vang (ID: 2670624)'),
-                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: fg),
-              ),
-              const SizedBox(height: 3),
-              Text(
-                tr(l, 'GVHD: PGS.TS Ngô Cường', 'Advisor: Assoc. Prof. Dr. Ngo Cuong'),
-                style: TextStyle(fontSize: 10.3, color: fg.withValues(alpha: 0.82)),
-              ),
-              Text(
-                tr(l, 'Trường ĐH Bách Khoa - ĐHQG TP.HCM', 'HCMUT - VNU-HCM'),
-                style: TextStyle(fontSize: 10.3, color: fg.withValues(alpha: 0.82)),
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'Email: vothanhvang@gmail.com',
-                style: TextStyle(fontSize: 10.4, color: Color(0xFF06B6D4), fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Phone: 0973.993.494',
-                style: TextStyle(fontSize: 10.4, color: fg.withValues(alpha: 0.9), fontFamily: 'DejaVuSansMono'),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
       ],
     );
   }
