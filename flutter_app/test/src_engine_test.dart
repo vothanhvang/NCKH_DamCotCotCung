@@ -26,11 +26,16 @@ void main() {
       expect(disEnd.tauBondMpa, greaterThan(0.01));
       expect(disEnd.studForceKn, greaterThan(1.0));
       expect(disEnd.slipMm, greaterThanOrEqualTo(0.0));
-      // Kiểm tra mô phỏng động theo mức tải 0% -> 100% cực hạn & chuyển dịch chia tải
-      final disUlt = SrcNonlinearEngine.dissectSectionAtUltimateFrac(res, 0.15, 0.98);
+      // Kiểm tra mô phỏng động theo tiến trình 5 giai đoạn (Đàn hồi → Nứt → Phi tuyến → Đứt gãy kết thúc)
+      final disUlt = SrcNonlinearEngine.dissectSectionAtUltimateFrac(res, 0.15, 1.0);
       expect(disUlt.epsMin, lessThan(disEnd.epsMin));
+      expect(disUlt.bondStatusLevel, 2);
+      final failCurve = SrcNonlinearEngine.computeFailurePathCurve(res);
+      expect(failCurve.length, 33);
+      expect(failCurve.last.stage, 5);
+      expect(failCurve.last.loadRatio, lessThan(0.85)); // Nhánh suy giảm sau đỉnh tới đứt gãy!
       final curve = SrcNonlinearEngine.computeLoadRedistributionCurve(res, 0.5);
-      expect(curve.length, 14);
+      expect(curve.length, 16);
       final p = SrcNonlinearEngine.probePoint(res, 0.5, -200.0, 0.0);
       expect(p.sigmaXMpa.isFinite, isTrue);
     });
@@ -98,16 +103,18 @@ void main() {
       await tester.tap(find.text('Đóng'));
       await tester.pumpAndSettle();
 
-      // Kiểm tra tab 2D & Phẫu thuật — Chế độ 0 (Phòng thí nghiệm Tương tác Thép hình ↔ Bê tông) & Hệ số khuếch đại
+      // Kiểm tra tab 2D & Phẫu thuật — Chế độ 0 (5 giai đoạn: Đàn hồi → Nứt → Phi tuyến → Cực hạn → Đứt gãy)
       await tester.tap(find.text('2D & Phẫu thuật'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('GĐ1 (15%)'), findsOneWidget);
+      expect(find.textContaining('GĐ1 Đàn hồi'), findsOneWidget);
+      expect(find.textContaining('GĐ5 Đứt gãy'), findsOneWidget);
       expect(find.textContaining('Khuếch đại'), findsOneWidget);
       expect(find.textContaining('PHÍA LÕI THÉP HÌNH'), findsOneWidget);
       await tester.tap(find.text('×100'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('GĐ4 (98%)'));
+      await tester.tap(find.text('GĐ5 Đứt gãy'));
       await tester.pumpAndSettle();
+      expect(find.textContaining('ĐỨT GÃY KẾT THÚC'), findsOneWidget);
       // Chuyển sang Chế độ 1 (Toàn cấu kiện 2D & Phẫu thuật Khảo sát Tự do)
       await tester.tap(find.textContaining('Toàn cấu kiện 2D'));
       await tester.pumpAndSettle();

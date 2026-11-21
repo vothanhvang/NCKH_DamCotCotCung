@@ -52,7 +52,7 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
   ContourField _contourField = ContourField.stressSigmaX;
   double _probeXNorm = 0.50;
   double _deformScale = 16.0;
-  double _loadStepFrac = 1.0;
+  double _loadStepFrac = 0.62;
   bool _animating = false;
   Timer? _animTimer;
   String? _statusMsg;
@@ -97,21 +97,22 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
   void _toggleAnimation() {
     if (_animating) {
       _animTimer?.cancel();
-      setState(() {
-        _animating = false;
-        _loadStepFrac = 1.0;
-      });
+      setState(() => _animating = false);
       return;
     }
     setState(() {
       _animating = true;
-      _loadStepFrac = 0.05;
+      // Nếu đã kéo tới đứt gãy (≥ 98%) thì khởi chạy lại từ 2% (Đàn hồi → Nứt → Phi tuyến → Đứt gãy kết thúc)
+      if (_loadStepFrac >= 0.98) _loadStepFrac = 0.02;
     });
     _animTimer = Timer.periodic(const Duration(milliseconds: 65), (_) {
       if (!mounted) return;
       setState(() {
-        _loadStepFrac += 0.04;
-        if (_loadStepFrac > 1.05) _loadStepFrac = 0.05;
+        _loadStepFrac = (_loadStepFrac + 0.015).clamp(0.02, 1.0);
+        if (_loadStepFrac >= 1.0) {
+          _animTimer?.cancel();
+          _animating = false; // Tự dừng khi đứt gãy kết thúc!
+        }
       });
     });
   }
@@ -514,6 +515,13 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
                                     lang: l,
                                     onProbeXChanged: (v) => setState(() => _probeXNorm = v),
                                     onDeformScaleChanged: (v) => setState(() => _deformScale = v),
+                                    onLoadStepChanged: (v) {
+                                      _animTimer?.cancel();
+                                      setState(() {
+                                        _animating = false;
+                                        _loadStepFrac = v;
+                                      });
+                                    },
                                   ),
                                   SrcViewport2DDissection(
                                     result: _result,

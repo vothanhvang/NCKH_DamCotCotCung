@@ -828,6 +828,22 @@ class LoadRedistPoint {
   });
 }
 
+/// Một điểm trên đường cong phá hoại 5 giai đoạn (Đàn hồi → Nứt → Phi tuyến → Cực hạn → Suy giảm & Đứt gãy kết thúc)
+class FailurePathPoint {
+  final double progress; // Tiến trình kiểm soát chuyển vị [0.0 .. 1.0 = Đứt gãy]
+  final double dispMm; // Chuyển vị δ (dầm) hoặc Δ (cột)
+  final double loadKn; // Tải trọng P (dầm) hoặc N (cột)
+  final double loadRatio; // Tỷ số tải hiện tại / P_u (đạt 1.0 ở đỉnh, suy giảm ở GĐ5)
+  final int stage; // 1: Đàn hồi, 2: Nứt, 3: Phi tuyến chảy dẻo, 4: Đỉnh cực hạn, 5: Đứt gãy kết thúc
+  const FailurePathPoint({
+    required this.progress,
+    required this.dispMm,
+    required this.loadKn,
+    required this.loadRatio,
+    required this.stage,
+  });
+}
+
 class BomItem {
   final String mark, descVi, descEn, grade, qtyVi, qtyEn;
   final double weightKg;
@@ -3330,20 +3346,95 @@ class SrcNonlinearEngine {
     return _dissectFromKinematics(res, xNorm, kin.eps0, kin.kz, kin.vShearN);
   }
 
-  /// Phẫu thuật mặt cắt phi tuyến tại mức tải bất kỳ `ultFrac ∈ [0.04, 1.0]` của tải cực hạn!
-  /// Nội suy trực tiếp từ lịch sử hội tụ phi tuyến `res.history` để thấy rõ 4 giai đoạn:
-  ///   GĐ1 Dính bám đàn hồi → GĐ2 Nứt kéo & Kích hoạt đinh neo → GĐ3 Chảy dẻo & Kiềm chế mạnh → GĐ4 Bong vỡ vỏ & Cực hạn!
+  /// Xác định giai đoạn cơ học 1..5 từ tiến trình kéo/nén kiểm soát chuyển vị `prog ∈ [0..1]`:
+  ///   1: Đàn hồi (0–22%) | 2: Nứt bê tông (22–48%) | 3: Vượt đàn hồi / Phi tuyến (48–72%)
+  ///   4: Cực hạn đỉnh tải (72–86%) | 5: Nhánh suy giảm & Đứt gãy kết thúc (86–100%)
+  static int failureStageOf(double prog) {
+    if (prog < 0.22) return 1;
+    if (prog < 0.48) return 2;
+    if (prog < 0.72) return 3;
+    if (prog < 0.86) return 4;
+    return 5;
+  }
+
+  /// Tính điểm tải trọng – chuyển vị chính xác trên đường cong 5 giai đoạn (gồm cả nhánh suy giảm sau đỉnh & đứt gãy)
+  static FailurePathPoint evaluateFailurePathPoint(SrcAnalysisResult res, double prog) {
+    final p = prog.clamp(0.0, 1.0);
+    final hist = res.history;
+    final pMax = math.max(1.0, res.ultimateLoadKn);
+    final peakDefl = hist.isNotEmpty
+        ? math.max(0.5, hist.last.deflMm.abs())
+        : math.max(1.0, res.deflDesignMm.abs() * 3.0);
+
+    if (p <= 0.84) {
+      // Nhánh đi lên thực tế từ lịch sử hội tụ phi tuyến FEM (0% → Đỉnh cực hạn tại p = 0.84)
+      final u = (p / 0.84).clamp(0.0, 1.0);
+      if (hist.length >= 2) {
+        final fIdx = u * (hist.length - 1);
+        final i0 = fIdx.floor().clamp(0, hist.length - 2);
+        final t = fIdx - i0;
+        final h0 = hist[i0], h1 = hist[i0 + 1];
+        final load = h0.loadKn * (1 - t) + h1.loadKn * t;
+        final disp = (h0.deflMm * (1 - t) + h1.deflMm * t).abs();
+        return FailurePathPoint(
+          progress: p,
+          dispMm: disp,
+          loadKn: load,
+          loadRatio: (load / pMax).clamp(0.0, 1.05),
+          stage: failureStageOf(p),
+        );
+      }
+      final load = pMax * math.pow(u, 0.75);
+      return FailurePathPoint(
+        progress: p,
+        dispMm: peakDefl * u,
+        loadKn: load,
+        loadRatio: (load / pMax).clamp(0.0, 1.0),
+        stage: failureStageOf(p),
+      );
+    } else {
+      // GĐ5: Nhánh suy giảm sau đỉnh (Post-Peak Softening) → ĐỨT GÃY KẾT THÚC tại p = 1.0!
+      final tSoft = ((p - 0.84) / 0.16).clamp(0.0, 1.0);
+      final drop = 0.56 * math.pow(tSoft, 1.35) + (tSoft > 0.92 ? 0.24 * ((tSoft - 0.92) / 0.08) : 0.0);
+      final ratio = (1.0 - drop).clamp(0.18, 1.0);
+      final disp = peakDefl * (1.0 + 0.75 * math.pow(tSoft, 1.15));
+      return FailurePathPoint(
+        progress: p,
+        dispMm: disp,
+        loadKn: pMax * ratio,
+        loadRatio: ratio,
+        stage: 5,
+      );
+    }
+  }
+
+  /// Dựng toàn bộ đường cong Phá hoại 5 Giai đoạn (30 điểm từ 0% Đàn hồi → 100% Đứt gãy kết thúc)
+  static List<FailurePathPoint> computeFailurePathCurve(SrcAnalysisResult res) {
+    const n = 32;
+    return [for (int i = 0; i <= n; i++) evaluateFailurePathPoint(res, i / n)];
+  }
+
+  /// Phẫu thuật mặt cắt phi tuyến tại tiến trình phá hoại bất kỳ `prog ∈ [0.03, 1.0]`:
+  ///   0.00–0.84: Đàn hồi → Nứt → Chảy dẻo phi tuyến → Đỉnh cực hạn (nội suy từ `res.history`)
+  ///   0.84–1.00: Nhánh suy giảm sau đỉnh → Đứt gãy cốt thép / cắt đinh neo / vỡ nén kết thúc!
   static DissectionResult dissectSectionAtUltimateFrac(SrcAnalysisResult res, double xNorm, double ultFrac) {
     final kin = _interpKinematics(res, xNorm);
-    final uf = ultFrac.clamp(0.03, 1.0);
+    final prog = ultFrac.clamp(0.02, 1.0);
     final isBeam = res.config.kind == MemberKind.beam;
     final hist = res.history;
-    double epsScale = uf;
-    double kzScale = uf;
-    double vScale = uf;
+
+    // Ánh xạ [0..0.84] lên toàn bộ đường đẩy tới đỉnh, [0.84..1.0] vào nhánh suy giảm sau đỉnh & đứt gãy!
+    final ufPeak = (prog / 0.84).clamp(0.02, 1.0);
+    final tSoft = prog > 0.84 ? ((prog - 0.84) / 0.16).clamp(0.0, 1.0) : 0.0;
+    final postPeakStrainMul = 1.0 + 1.85 * math.pow(tSoft, 1.25);
+    final postPeakForceMul = 1.0 - 0.52 * math.pow(tSoft, 1.35);
+
+    double epsScale = ufPeak;
+    double kzScale = ufPeak;
+    double vScale = ufPeak;
 
     if (hist.length >= 2) {
-      final fIdx = uf * (hist.length - 1);
+      final fIdx = ufPeak * (hist.length - 1);
       final i0 = fIdx.floor().clamp(0, hist.length - 2);
       final t = fIdx - i0;
       final h0 = hist[i0], h1 = hist[i0 + 1];
@@ -3357,42 +3448,86 @@ class SrcNonlinearEngine {
       final desShort = math.max(0.02, res.axialShortMm.abs());
       final desV = math.max(1.0, res.profileVKn.fold<double>(1.0, (a, b) => math.max(a, b.abs())));
 
-      vScale = (stepV.abs() / desV).clamp(0.03, 5.0);
+      vScale = (stepV.abs() / desV).clamp(0.03, 5.0) * postPeakForceMul;
       if (isBeam) {
-        final dRat = (stepDefl.abs() / desDefl).clamp(0.03, 16.0);
-        // Điều chỉnh nhẹ để biến dạng nén đỉnh phản ánh đúng `stepEpsMin` của bước đẩy phi tuyến
+        final dRat = (stepDefl.abs() / desDefl).clamp(0.03, 18.0);
         final baseMinEps = (kin.eps0 - 0.5 * res.config.geometry.hMm * kin.kz).abs();
-        final eRat = baseMinEps > 1e-6 ? (stepEpsMin.abs() / baseMinEps).clamp(0.03, 16.0) : dRat;
-        final blend = 0.55 * dRat + 0.45 * eRat;
+        final eRat = baseMinEps > 1e-6 ? (stepEpsMin.abs() / baseMinEps).clamp(0.03, 18.0) : dRat;
+        final blend = (0.55 * dRat + 0.45 * eRat) * postPeakStrainMul;
         epsScale = blend;
         kzScale = blend;
       } else {
-        final sRat = (stepShort.abs() / desShort).clamp(0.03, 12.0);
-        final dRat = (stepDefl.abs() / desDefl).clamp(0.03, 12.0);
+        final sRat = (stepShort.abs() / desShort).clamp(0.03, 14.0);
+        final dRat = (stepDefl.abs() / desDefl).clamp(0.03, 14.0);
         final baseMinEps = (kin.eps0.abs() + 0.5 * res.config.geometry.hMm * kin.kz.abs());
-        final eRat = baseMinEps > 1e-6 ? (stepEpsMin.abs() / baseMinEps).clamp(0.03, 12.0) : sRat;
-        epsScale = 0.50 * sRat + 0.50 * eRat;
-        kzScale = 0.55 * dRat + 0.45 * eRat;
+        final eRat = baseMinEps > 1e-6 ? (stepEpsMin.abs() / baseMinEps).clamp(0.03, 14.0) : sRat;
+        epsScale = (0.50 * sRat + 0.50 * eRat) * postPeakStrainMul;
+        kzScale = (0.55 * dRat + 0.45 * eRat) * postPeakStrainMul;
         if (stepLoad > 0 && res.demandPrimary > 1) {
-          vScale = math.max(vScale, (stepLoad / res.demandPrimary).clamp(0.03, 5.0));
+          vScale = math.max(vScale, (stepLoad / res.demandPrimary).clamp(0.03, 5.0) * postPeakForceMul);
         }
       }
+    } else {
+      epsScale *= postPeakStrainMul;
+      kzScale *= postPeakStrainMul;
+      vScale *= postPeakForceMul;
     }
 
-    return _dissectFromKinematics(res, xNorm, kin.eps0 * epsScale, kin.kz * kzScale, kin.vShearN * vScale);
+    final baseDis = _dissectFromKinematics(res, xNorm, kin.eps0 * epsScale, kin.kz * kzScale, kin.vShearN * vScale);
+    if (tSoft <= 0.0) return baseDis;
+
+    // Ở GĐ5 (Nhánh suy giảm → Đứt gãy kết thúc), độ trượt tăng vọt do đinh neo bị cắt đứt / vỏ bong vỡ!
+    final fracSlip = baseDis.slipMm + (0.65 + 1.45 * tSoft) * tSoft;
+    return DissectionResult(
+      xNorm: baseDis.xNorm,
+      xMm: baseDis.xMm,
+      eps0: baseDis.eps0,
+      kappaZ: baseDis.kappaZ,
+      kappaY: baseDis.kappaY,
+      nKn: baseDis.nKn,
+      mzKnm: baseDis.mzKnm,
+      myKnm: baseDis.myKnm,
+      vShearKn: baseDis.vShearKn,
+      xNaMm: baseDis.xNaMm,
+      sigMinMpa: baseDis.sigMinMpa,
+      sigMaxMpa: baseDis.sigMaxMpa,
+      epsMin: baseDis.epsMin,
+      epsMax: baseDis.epsMax,
+      fibers: baseDis.fibers,
+      nSteelKn: baseDis.nSteelKn,
+      nConcreteKn: baseDis.nConcreteKn,
+      nRebarKn: baseDis.nRebarKn,
+      mzSteelKnm: baseDis.mzSteelKnm,
+      mzConcreteKnm: baseDis.mzConcreteKnm,
+      mzRebarKnm: baseDis.mzRebarKnm,
+      steelSharePct: baseDis.steelSharePct,
+      concreteSharePct: baseDis.concreteSharePct,
+      rebarSharePct: baseDis.rebarSharePct,
+      bondPerimeterMm: baseDis.bondPerimeterMm,
+      vInterfaceKnPerM: baseDis.vInterfaceKnPerM,
+      tauBondMpa: baseDis.tauBondMpa,
+      tauRdMpa: baseDis.tauRdMpa,
+      studForceKn: baseDis.studForceKn,
+      studUr: math.max(baseDis.studUr, 1.0 + 0.35 * tSoft),
+      splitUr: math.max(baseDis.splitUr, 0.95 + 0.45 * tSoft),
+      slipMm: fracSlip,
+      bondStatusLevel: 2,
+      bondStateVi: tSoft >= 0.85 ? 'ĐỨT GÃY KẾT THÚC — Phá hoại liên kết' : 'Suy giảm sau đỉnh — Đứt cắt đinh neo / Bong vỡ',
+      bondStateEn: tSoft >= 0.85 ? 'FRACTURE TERMINATED — Bond & Rupture Failure' : 'Post-Peak Softening — Stud Fracture / Spalling',
+    );
   }
 
-  /// Dựng đường cong chuyển dịch phân chia nội lực (Thép hình H vs Bê tông vs Cốt thép) theo mức tải 5% → 100% cực hạn
+  /// Dựng đường cong chuyển dịch phân chia nội lực (Thép hình H vs Bê tông vs Cốt thép) từ 5% → 100% Đứt gãy
   static List<LoadRedistPoint> computeLoadRedistributionCurve(SrcAnalysisResult res, double xNorm) {
     final pts = <LoadRedistPoint>[];
-    final maxLoad = res.ultimateLoadKn;
-    const steps = 14;
+    const steps = 16;
     for (int i = 1; i <= steps; i++) {
       final uf = i / steps;
       final d = dissectSectionAtUltimateFrac(res, xNorm, uf);
+      final fp = evaluateFailurePathPoint(res, uf);
       pts.add(LoadRedistPoint(
         ultFrac: uf,
-        loadKn: maxLoad * uf,
+        loadKn: fp.loadKn,
         steelPct: d.steelSharePct,
         concretePct: d.concreteSharePct,
         rebarPct: d.rebarSharePct,

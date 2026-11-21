@@ -74,6 +74,7 @@ class SrcViewport3D extends StatefulWidget {
   final AppLang lang;
   final ValueChanged<double> onProbeXChanged;
   final ValueChanged<double> onDeformScaleChanged;
+  final ValueChanged<double>? onLoadStepChanged;
 
   const SrcViewport3D({
     super.key,
@@ -86,6 +87,7 @@ class SrcViewport3D extends StatefulWidget {
     required this.lang,
     required this.onProbeXChanged,
     required this.onDeformScaleChanged,
+    this.onLoadStepChanged,
   });
 
   @override
@@ -186,7 +188,23 @@ class _SrcViewport3DState extends State<SrcViewport3D> {
           viewport: sz,
           isVerticalColumn: isCol,
         );
-        final disAtCut = SrcNonlinearEngine.dissectSection(res, widget.probeXNorm);
+        final disAtCut = SrcNonlinearEngine.dissectSectionAtUltimateFrac(res, widget.probeXNorm, widget.loadStepFraction);
+        final fp3d = SrcNonlinearEngine.evaluateFailurePathPoint(res, widget.loadStepFraction);
+        final stage3d = fp3d.stage;
+        final stageCol3d = switch (stage3d) {
+          1 => const Color(0xFF10B981),
+          2 => const Color(0xFF38BDF8),
+          3 => const Color(0xFFF59E0B),
+          4 => const Color(0xFFF97316),
+          _ => const Color(0xFFEF4444),
+        };
+        final stageLbl3d = switch (stage3d) {
+          1 => tr(l, 'GĐ1 Đàn hồi', 'S1 Elastic'),
+          2 => tr(l, 'GĐ2 Nứt BT', 'S2 Cracked'),
+          3 => tr(l, 'GĐ3 Phi tuyến', 'S3 Nonlinear'),
+          4 => tr(l, 'GĐ4 Cực hạn', 'S4 Peak'),
+          _ => widget.loadStepFraction >= 0.985 ? tr(l, '✕ ĐỨT GÃY KẾT THÚC', '✕ FRACTURE') : tr(l, 'GĐ5 Suy giảm', 'S5 Softening'),
+        };
 
         return Container(
           decoration: BoxDecoration(
@@ -261,7 +279,8 @@ class _SrcViewport3DState extends State<SrcViewport3D> {
                       minV: meta.minV,
                       maxV: meta.maxV,
                       probeXNorm: widget.probeXNorm,
-                      deformScale: widget.deformScale * widget.loadStepFraction,
+                      deformScale: widget.deformScale * (widget.loadStepFraction <= 0.84 ? (widget.loadStepFraction / 0.84) : (1.0 + 0.85 * (widget.loadStepFraction - 0.84) / 0.16)),
+                      loadStepFraction: widget.loadStepFraction,
                       xRay: _xRay,
                       clipTransverse: _clipTransverse,
                       clipLongitudinal: _clipLongitudinal,
@@ -435,6 +454,39 @@ class _SrcViewport3DState extends State<SrcViewport3D> {
                           ],
                         ),
                       ),
+                      // Slider Tiến trình Kéo/Nén 5 Giai đoạn (Đàn hồi → Nứt → Phi tuyến → Đứt gãy kết thúc)
+                      if (widget.onLoadStepChanged != null)
+                        SizedBox(
+                          width: math.min(320, constraints.maxWidth - 44),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: stageCol3d.withValues(alpha: 0.22),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: stageCol3d),
+                                ),
+                                child: Text(stageLbl3d, style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: stageCol3d)),
+                              ),
+                              Expanded(
+                                child: SliderTheme(
+                                  data: SliderTheme.of(context).copyWith(
+                                    trackHeight: 3.5,
+                                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                                  ),
+                                  child: Slider(
+                                    value: widget.loadStepFraction.clamp(0.02, 1.0),
+                                    min: 0.02,
+                                    max: 1.0,
+                                    activeColor: stageCol3d,
+                                    onChanged: widget.onLoadStepChanged,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       // Tóm tắt nhanh tại mặt cắt đang phẫu thuật
                       Text(
                         'M=${disAtCut.mzKnm.toStringAsFixed(1)} kN·m | N=${disAtCut.nKn.toStringAsFixed(0)} kN | x_NA=${disAtCut.xNaMm.toStringAsFixed(0)} mm | σ=[${disAtCut.sigMinMpa.toStringAsFixed(0)}, ${disAtCut.sigMaxMpa.toStringAsFixed(0)}] MPa',
@@ -515,7 +567,7 @@ class _Src3DPainter extends CustomPainter {
   final _Cam3D cam;
   final ContourField field;
   final double minV, maxV;
-  final double probeXNorm, deformScale;
+  final double probeXNorm, deformScale, loadStepFraction;
   final bool xRay, clipTransverse, clipLongitudinal, showRebar, darkMode;
   final AppLang lang;
 
@@ -528,6 +580,7 @@ class _Src3DPainter extends CustomPainter {
     required this.maxV,
     required this.probeXNorm,
     required this.deformScale,
+    required this.loadStepFraction,
     required this.xRay,
     required this.clipTransverse,
     required this.clipLongitudinal,
@@ -857,8 +910,85 @@ class _Src3DPainter extends CustomPainter {
     final na2 = cam.project(_toWorld(sCut, yNa, 0.55 * bDraw, dCut)).pt;
     canvas.drawLine(na1, na2, Paint()..color = const Color(0xFFFFFFFF)..strokeWidth = 2.0);
 
+    // 5b. Vẽ vết nứt 3D (GĐ2–4) & Khe ĐỨT GÃY KẾT THÚC 3D + mảnh vỡ nén (GĐ5!)
+    _draw3DCracksAndFracture(canvas, L, g, isCol);
+
     // 6. Vẽ mũi tên tải trọng 3D (UDL / 3pt / 4pt hoặc Nén lệch tâm cột!)
     _drawLoads3D(canvas, L, g, isCol);
+  }
+
+  void _draw3DCracksAndFracture(Canvas canvas, double L, SectionGeometry g, bool isCol) {
+    final p = loadStepFraction;
+    if (p < 0.22) return; // GĐ1 Đàn hồi: chưa có vết nứt!
+    final tFrac = p > 0.86 ? ((p - 0.86) / 0.14).clamp(0.0, 1.0) : 0.0;
+    final bSide = 0.5 * g.bMm + 2.0;
+
+    // 1. Các vết nứt uốn / nén 3D trên mặt trước & mặt sau cấu kiện
+    final crP = Paint()
+      ..color = p >= 0.72 ? const Color(0xFFFF2D55) : const Color(0xFFF43F5E)
+      ..strokeWidth = 1.4 + 1.4 * p
+      ..style = PaintingStyle.stroke;
+    final nCr = p < 0.48 ? 5 : (p < 0.72 ? 9 : 13);
+    for (int k = 0; k < nCr; k++) {
+      final frac = 0.20 + 0.60 * (k / math.max(1, nCr - 1));
+      final s = L * frac;
+      final d = _deflAt(s);
+      final weight = 1.0 - (2.0 * (frac - 0.5)).abs();
+      final reach = g.hMm * (0.20 + 0.55 * p) * (0.45 + 0.55 * weight);
+      for (final zFace in [-bSide, bSide]) {
+        final yStart = -0.5 * g.hMm;
+        final a = cam.project(_toWorld(s, yStart, zFace, d)).pt;
+        final b = cam.project(_toWorld(s + 22, yStart + reach * 0.5, zFace, d)).pt;
+        final c = cam.project(_toWorld(s - 18, yStart + reach, zFace, d)).pt;
+        canvas.drawPath(Path()..moveTo(a.dx, a.dy)..lineTo(b.dx, b.dy)..lineTo(c.dx, c.dy), crP);
+      }
+    }
+
+    // 2. GĐ5 (≥ 86% → 100%): KHE ĐỨT GÃY CHÍNH 3D + TIA ĐỨT CỐT THÉP + MẢNH VỠ NÉN!
+    if (tFrac > 0.02) {
+      final sMid = 0.5 * L;
+      final dMid = _deflAt(sMid);
+      final halfH = 0.5 * g.hMm;
+      final fracP = Paint()..color = const Color(0xFFFFD700)..strokeWidth = 2.6 + 1.5 * tFrac;
+      final darkGap = Paint()..color = const Color(0xFF3B0718)..strokeWidth = 5.0 + 4.0 * tFrac;
+
+      for (final zFace in [-bSide, bSide]) {
+        final p1 = cam.project(_toWorld(sMid - 30 * tFrac, -halfH, zFace, dMid)).pt;
+        final p2 = cam.project(_toWorld(sMid + 45 * tFrac, 0.0, zFace, dMid)).pt;
+        final p3 = cam.project(_toWorld(sMid - 20 * tFrac, halfH, zFace, dMid)).pt;
+        final path = Path()..moveTo(p1.dx, p1.dy)..lineTo(p2.dx, p2.dy)..lineTo(p3.dx, p3.dy);
+        canvas.drawPath(path, darkGap..style = PaintingStyle.stroke);
+        canvas.drawPath(path, fracP..style = PaintingStyle.stroke);
+      }
+
+      // Tia đứt gãy sáng chói tại vùng kéo đứt (dầm) hoặc lõi cắt (cột)
+      final burstPt = cam.project(_toWorld(sMid, isCol ? 0.0 : -0.35 * g.hMm, 0.0, dMid)).pt;
+      canvas.drawCircle(burstPt, 10.0 + 10.0 * tFrac, Paint()..color = const Color(0xFFFFD700).withValues(alpha: 0.45));
+      canvas.drawLine(burstPt - const Offset(10, 8), burstPt + const Offset(10, 8), Paint()..color = Colors.white..strokeWidth = 2.2);
+      canvas.drawLine(burstPt + const Offset(-10, 8), burstPt + const Offset(10, -8), Paint()..color = Colors.white..strokeWidth = 2.2);
+
+      // Mảnh vỡ bê tông nén rơi/bung ra trong không gian 3D
+      for (final dx in [-140.0, -50.0, 50.0, 140.0]) {
+        final sh = cam.project(_toWorld(sMid + dx, halfH + 90.0 * tFrac, (dx > 0 ? 1 : -1) * bSide * 0.8, dMid)).pt;
+        canvas.drawCircle(sh, 3.2 + 2.0 * tFrac, Paint()..color = const Color(0xFFFF2D55));
+      }
+
+      if (p >= 0.985) {
+        final lbl = tr(lang, '✕ ĐỨT GÃY KẾT THÚC (FRACTURE)', '✕ FRACTURE TERMINATED');
+        final tp = TextPainter(
+          text: TextSpan(text: lbl, style: const TextStyle(color: Colors.white, fontSize: 12.0, fontWeight: FontWeight.w900)),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        final topAnchor = cam.project(_toWorld(sMid, halfH + 260, 0.0, dMid)).pt;
+        final r = RRect.fromRectAndRadius(
+          Rect.fromCenter(center: topAnchor, width: tp.width + 16, height: tp.height + 8),
+          const Radius.circular(6),
+        );
+        canvas.drawRRect(r, Paint()..color = const Color(0xFFDC2626).withValues(alpha: 0.94));
+        canvas.drawRRect(r, Paint()..color = const Color(0xFFFFD700)..style = PaintingStyle.stroke..strokeWidth = 1.5);
+        tp.paint(canvas, topAnchor - Offset(tp.width * 0.5, tp.height * 0.5));
+      }
+    }
   }
 
   void _drawGrid(Canvas canvas, double L, bool isCol) {
