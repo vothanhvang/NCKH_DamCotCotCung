@@ -207,24 +207,25 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
                 // ===========================================================
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: wide ? 8 : 6),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: dark
-                          ? const [Color(0xFF0B1E3D), Color(0xFF0E2954), Color(0xFF0B1E3D)]
-                          : const [Color(0xFF0F3D6E), Color(0xFF1D4ED8), Color(0xFF0F3D6E)],
+                          ? const [Color(0xFF091A38), Color(0xFF10316B), Color(0xFF091A38)]
+                          : const [Color(0xFF0B2C59), Color(0xFF16438E), Color(0xFF0B2C59)],
                     ),
                     border: Border(
                       bottom: BorderSide(
-                        color: const Color(0xFF06B6D4).withValues(alpha: 0.45),
+                        color: const Color(0xFFFACC15).withValues(alpha: 0.72),
+                        width: 1.5,
                       ),
                     ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.school_outlined, size: 15, color: Color(0xFF38BDF8)),
-                      const SizedBox(width: 7),
+                      Icon(Icons.school, size: wide ? 20 : 17, color: const Color(0xFFFFD700)),
+                      const SizedBox(width: 8),
                       Flexible(
                         child: Text(
                           tr(
@@ -234,11 +235,15 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
                           ),
                           textAlign: TextAlign.center,
                           softWrap: true,
-                          style: const TextStyle(
-                            fontSize: 11.2,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                            height: 1.3,
+                          style: TextStyle(
+                            fontSize: wide ? 14.5 : 12.6,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFFFFD700),
+                            height: 1.32,
+                            letterSpacing: 0.15,
+                            shadows: const [
+                              Shadow(color: Color(0x99000000), offset: Offset(0, 1), blurRadius: 2.5),
+                            ],
                           ),
                         ),
                       ),
