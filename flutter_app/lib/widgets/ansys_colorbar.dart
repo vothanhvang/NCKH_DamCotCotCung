@@ -64,7 +64,7 @@ class AnsysColorBar extends StatelessWidget {
                 title,
                 style: const TextStyle(
                   color: Color(0xFF38BDF8),
-                  fontSize: 10.5,
+                  fontSize: 12.0,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -87,7 +87,7 @@ class AnsysColorBar extends StatelessWidget {
           ),
           Text(
             unit,
-            style: TextStyle(color: textColor.withValues(alpha: 0.7), fontSize: 9.5),
+            style: TextStyle(color: textColor.withValues(alpha: 0.7), fontSize: 12.0),
           ),
           const SizedBox(height: 6),
           SizedBox(
@@ -126,7 +126,7 @@ class AnsysColorBar extends StatelessWidget {
                         style: TextStyle(
                           color: textColor,
                           fontFamily: 'DejaVuSansMono',
-                          fontSize: 9.5,
+                          fontSize: 12.0,
                         ),
                       ),
                   ],

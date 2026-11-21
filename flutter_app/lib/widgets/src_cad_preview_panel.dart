@@ -151,11 +151,11 @@ class _SrcCadPreviewPanelState extends State<SrcCadPreviewPanel> {
                     Text(
                       tr(l, 'BẢNG THỐNG KÊ THÉP HÌNH, CỐT THÉP & VẬT LIỆU THI CÔNG (BOM / BBS)',
                           'BILL OF MATERIALS & BAR BENDING SCHEDULE (BOM / BBS)'),
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF06B6D4)),
+                      style: const TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: Color(0xFF06B6D4)),
                     ),
                     Text(
                       '${tr(l, "Tổng thép chế tạo", "Total Steel")}: ${steelKg.toStringAsFixed(1)} kg',
-                      style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, fontFamily: 'DejaVuSansMono', color: fg),
+                      style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, fontFamily: 'DejaVuSansMono', color: fg),
                     ),
                   ],
                 ),
@@ -177,9 +177,9 @@ class _SrcCadPreviewPanelState extends State<SrcCadPreviewPanel> {
                       for (final b in res.bom)
                         DataRow(cells: [
                           DataCell(Text(b.mark, style: const TextStyle(fontWeight: FontWeight.bold, fontFamily: 'DejaVuSansMono', color: Color(0xFF38BDF8)))),
-                          DataCell(Text(l.isVi ? b.descVi : b.descEn, style: TextStyle(fontSize: 11.5, color: fg))),
-                          DataCell(Text(b.grade, style: TextStyle(fontSize: 11, color: fg))),
-                          DataCell(Text(l.isVi ? b.qtyVi : b.qtyEn, style: TextStyle(fontSize: 11, color: fg))),
+                          DataCell(Text(l.isVi ? b.descVi : b.descEn, style: TextStyle(fontSize: 12.0, color: fg))),
+                          DataCell(Text(b.grade, style: TextStyle(fontSize: 12.0, color: fg))),
+                          DataCell(Text(l.isVi ? b.qtyVi : b.qtyEn, style: TextStyle(fontSize: 12.0, color: fg))),
                           DataCell(Text(b.weightKg.toStringAsFixed(1), style: TextStyle(fontFamily: 'DejaVuSansMono', fontWeight: FontWeight.bold, color: fg))),
                         ]),
                     ],
@@ -195,7 +195,7 @@ class _SrcCadPreviewPanelState extends State<SrcCadPreviewPanel> {
 
   Widget _layerChip(String label, Color col, bool selected, ValueChanged<bool> onChanged) {
     return FilterChip(
-      label: Text(label, style: TextStyle(fontSize: 10.8, color: selected ? col : null)),
+      label: Text(label, style: TextStyle(fontSize: 12.0, color: selected ? col : null)),
       selected: selected,
       onSelected: onChanged,
       selectedColor: col.withValues(alpha: 0.20),
@@ -272,7 +272,7 @@ class _CadSheetPainter extends CustomPainter {
       const ex = 34.0;
       final ey = size.height * 0.52 - 0.5 * elH;
 
-      _txt(canvas, Offset(ex, 18), tr(lang, '1. MẶT ĐỨNG DỌC DẦM SRC (L = ${cfg.lengthMm.toStringAsFixed(0)} mm)', '1. SRC BEAM ELEVATION (L = ${cfg.lengthMm.toStringAsFixed(0)} mm)'), fg, 11);
+      _txt(canvas, Offset(ex, 18), tr(lang, '1. MẶT ĐỨNG DỌC DẦM SRC (L = ${cfg.lengthMm.toStringAsFixed(0)} mm)', '1. SRC BEAM ELEVATION (L = ${cfg.lengthMm.toStringAsFixed(0)} mm)'), fg, 12.0);
       final rectB = Rect.fromLTWH(ex, ey, elL, elH);
       canvas.drawRect(rectB, concFill);
       canvas.drawRect(rectB, concStroke);
@@ -315,14 +315,14 @@ class _CadSheetPainter extends CustomPainter {
       }
       // Đường kích thước L
       canvas.drawLine(Offset(ex, ey + elH + 22), Offset(ex + elL, ey + elH + 22), Paint()..color = dimCol..strokeWidth = 1.0);
-      _txt(canvas, Offset(ex + elL * 0.32, ey + elH + 26), 'L = ${cfg.lengthMm.toStringAsFixed(0)} mm | Đai @${g.stirrupSpacingEndMm.toStringAsFixed(0)}/${g.stirrupSpacingMm.toStringAsFixed(0)}', dimCol, 10);
+      _txt(canvas, Offset(ex + elL * 0.32, ey + elH + 26), 'L = ${cfg.lengthMm.toStringAsFixed(0)} mm | Đai @${g.stirrupSpacingEndMm.toStringAsFixed(0)}/${g.stirrupSpacingMm.toStringAsFixed(0)}', dimCol, 12.0);
 
       // 2. Mặt cắt ngang 1-1 (bên phải)
       final cxS = size.width * 0.80, cyS = size.height * 0.52;
       final bMax = g.sectionType == 'SRC_T_SLAB_H' ? g.bfSlabMm : g.bMm;
       final scS = math.min((size.width * 0.32) / math.max(250.0, bMax), (size.height * 0.62) / math.max(250.0, g.hMm));
       final bS = g.bMm * scS, hS = g.hMm * scS, covS = g.coverMm * scS;
-      _txt(canvas, Offset(cxS - 52, 18), tr(lang, '2. MẶT CẮT NGANG 1–1', '2. CROSS-SECTION 1–1'), fg, 11);
+      _txt(canvas, Offset(cxS - 52, 18), tr(lang, '2. MẶT CẮT NGANG 1–1', '2. CROSS-SECTION 1–1'), fg, 12.0);
       final rSec = Rect.fromCenter(center: Offset(cxS, cyS), width: bS, height: hS);
       canvas.drawRect(rSec, concFill);
       canvas.drawRect(rSec, concStroke);
@@ -341,13 +341,13 @@ class _CadSheetPainter extends CustomPainter {
           canvas.drawCircle(Offset(cxS + rb.zMm * scS, cyS - rb.yMm * scS), math.max(3.2, 0.5 * rb.diaMm * scS), Paint()..color = const Color(0xFF22C55E));
         }
       }
-      _txt(canvas, Offset(cxS - 55, cyS + 0.5 * hS + 12), 'b×h = ${g.bMm.toStringAsFixed(0)}×${g.hMm.toStringAsFixed(0)} mm', dimCol, 10);
+      _txt(canvas, Offset(cxS - 55, cyS + 0.5 * hS + 12), 'b×h = ${g.bMm.toStringAsFixed(0)}×${g.hMm.toStringAsFixed(0)} mm', dimCol, 12.0);
     } else {
       // Cột: 3 hình (Mặt đứng | Mặt cắt 1-1 | Mặt bằng Bản đế)
       final scE = math.min((size.height * 0.72) / math.max(1500.0, cfg.lengthMm), 80.0 / math.max(200.0, g.bMm));
       final cw = g.bMm * scE, ch = cfg.lengthMm * scE;
       final cxE = size.width * 0.16, ey = size.height * 0.53 - 0.5 * ch;
-      _txt(canvas, Offset(cxE - 46, 18), tr(lang, '1. MẶT ĐỨNG CỘT', '1. ELEVATION'), fg, 11);
+      _txt(canvas, Offset(cxE - 46, 18), tr(lang, '1. MẶT ĐỨNG CỘT', '1. ELEVATION'), fg, 12.0);
       canvas.drawRect(Rect.fromLTWH(cxE - 0.5 * cw, ey, cw, ch), concFill);
       canvas.drawRect(Rect.fromLTWH(cxE - 0.5 * cw, ey, cw, ch), concStroke);
       if (showSteel) {
@@ -357,13 +357,13 @@ class _CadSheetPainter extends CustomPainter {
       if (showHardware) {
         canvas.drawRect(Rect.fromLTWH(cxE - 0.5 * cw - 8, ey + ch, cw + 16, 8), Paint()..color = const Color(0xFFE879F9));
       }
-      _txt(canvas, Offset(cxE - 38, ey + ch + 14), 'H = ${cfg.lengthMm.toStringAsFixed(0)} mm', dimCol, 10);
+      _txt(canvas, Offset(cxE - 38, ey + ch + 14), 'H = ${cfg.lengthMm.toStringAsFixed(0)} mm', dimCol, 12.0);
 
       // Mặt cắt 1-1
       final cxS = size.width * 0.48, cyS = size.height * 0.53;
       final scS = math.min((size.width * 0.25) / math.max(200.0, g.bMm), (size.height * 0.62) / math.max(200.0, g.hMm));
       final bS = g.bMm * scS, hS = g.hMm * scS, covS = g.coverMm * scS;
-      _txt(canvas, Offset(cxS - 50, 18), tr(lang, '2. MẶT CẮT NGANG 1–1', '2. SECTION 1–1'), fg, 11);
+      _txt(canvas, Offset(cxS - 50, 18), tr(lang, '2. MẶT CẮT NGANG 1–1', '2. SECTION 1–1'), fg, 12.0);
       if (g.sectionType == 'COL_CIRC_H') {
         canvas.drawCircle(Offset(cxS, cyS), 0.5 * bS, concFill);
         canvas.drawCircle(Offset(cxS, cyS), 0.5 * bS, concStroke);
@@ -383,14 +383,14 @@ class _CadSheetPainter extends CustomPainter {
           canvas.drawCircle(Offset(cxS + rb.zMm * scS, cyS - rb.yMm * scS), math.max(3.2, 0.5 * rb.diaMm * scS), Paint()..color = const Color(0xFF22C55E));
         }
       }
-      _txt(canvas, Offset(cxS - 54, cyS + 0.5 * hS + 12), '${g.bMm.toStringAsFixed(0)}×${g.hMm.toStringAsFixed(0)} mm', dimCol, 10);
+      _txt(canvas, Offset(cxS - 54, cyS + 0.5 * hS + 12), '${g.bMm.toStringAsFixed(0)}×${g.hMm.toStringAsFixed(0)} mm', dimCol, 12.0);
 
       // Bản đế chân cột
       final cxB = size.width * 0.80, cyB = size.height * 0.53;
       final bpW = g.bMm + 120.0, bpH = g.hMm + 120.0;
       final scB = math.min((size.width * 0.24) / bpW, (size.height * 0.60) / bpH);
       final bwS = bpW * scB, bhS = bpH * scB;
-      _txt(canvas, Offset(cxB - 62, 18), tr(lang, '3. BẢN ĐẾ CHÂN CỘT', '3. BASEPLATE DETAIL'), fg, 11);
+      _txt(canvas, Offset(cxB - 62, 18), tr(lang, '3. BẢN ĐẾ CHÂN CỘT', '3. BASEPLATE DETAIL'), fg, 12.0);
       if (showHardware) {
         final rb = Rect.fromCenter(center: Offset(cxB, cyB), width: bwS, height: bhS);
         canvas.drawRect(rb, Paint()..color = const Color(0x28E879F9));
@@ -400,7 +400,7 @@ class _CadSheetPainter extends CustomPainter {
         }
       }
       drawSteelSection(cxB, cyB, scB);
-      _txt(canvas, Offset(cxB - 62, cyB + 0.5 * bhS + 12), 'PL30×${bpW.toStringAsFixed(0)}×${bpH.toStringAsFixed(0)} (8×M24)', dimCol, 10);
+      _txt(canvas, Offset(cxB - 62, cyB + 0.5 * bhS + 12), 'PL30×${bpW.toStringAsFixed(0)}×${bpH.toStringAsFixed(0)} (8×M24)', dimCol, 12.0);
     }
   }
 

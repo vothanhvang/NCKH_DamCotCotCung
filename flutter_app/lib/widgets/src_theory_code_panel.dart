@@ -29,7 +29,7 @@ class SrcTheoryCodePanel extends StatelessWidget {
     final sub = dark ? const Color(0xFF94A3B8) : const Color(0xFF475569);
     final eqColor = dark ? const Color(0xFF7DD3FC) : const Color(0xFF0F3D6E);
     final eqStyle = TextStyle(
-      fontSize: 11.4,
+      fontSize: 12.0,
       fontFamily: 'DejaVuSansMono',
       fontWeight: FontWeight.bold,
       color: eqColor,
@@ -223,7 +223,7 @@ class SrcTheoryCodePanel extends StatelessWidget {
                     Expanded(
                       child: Text(
                         tr(l, 'THÔNG TIN TÁC GIẢ & ĐƠN VỊ THỰC HIỆN', 'AUTHOR & INSTITUTIONAL INFORMATION'),
-                        style: const TextStyle(fontSize: 12.2, fontWeight: FontWeight.bold, color: Color(0xFF06B6D4)),
+                        style: const TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: Color(0xFF06B6D4)),
                       ),
                     ),
                   ],
@@ -231,22 +231,22 @@ class SrcTheoryCodePanel extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   tr(l, 'Trường Đại học Bách Khoa - Đại học Quốc Gia TP. Hồ Chí Minh', 'Ho Chi Minh City University of Technology (VNU-HCM)'),
-                  style: TextStyle(fontSize: 11.8, fontWeight: FontWeight.bold, color: fg),
+                  style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: fg),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   tr(l, 'Giảng viên hướng dẫn: PGS.TS Ngô Cường', 'Advisor: Assoc. Prof. Dr. Ngo Cuong'),
-                  style: TextStyle(fontSize: 11.3, color: sub),
+                  style: TextStyle(fontSize: 12.0, color: sub),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   tr(l, 'Tác giả / Học viên thực hiện: Võ Thanh Vang (2670624)', 'Author / Student: Vo Thanh Vang (2670624)'),
-                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: fg),
+                  style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.w600, color: fg),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   'Email: vothanhvang@gmail.com   |   Phone: 0973.993.494',
-                  style: TextStyle(fontSize: 11.2, fontFamily: 'DejaVuSansMono', color: dark ? const Color(0xFF38BDF8) : const Color(0xFF0F3D6E)),
+                  style: TextStyle(fontSize: 12.0, fontFamily: 'DejaVuSansMono', color: dark ? const Color(0xFF38BDF8) : const Color(0xFF0F3D6E)),
                 ),
               ],
             ),
@@ -264,7 +264,7 @@ class SrcTheoryCodePanel extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(f.title, style: TextStyle(fontSize: 12.2, fontWeight: FontWeight.bold, color: fg)),
+                  Text(f.title, style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: fg)),
                   const SizedBox(height: 6),
                   Container(
                     width: double.infinity,
@@ -277,9 +277,9 @@ class SrcTheoryCodePanel extends StatelessWidget {
                     child: f.eqWidget,
                   ),
                   const SizedBox(height: 6),
-                  Text(f.desc, style: TextStyle(fontSize: 11.2, color: fg.withValues(alpha: 0.9), height: 1.4)),
+                  Text(f.desc, style: TextStyle(fontSize: 12.0, color: fg.withValues(alpha: 0.9), height: 1.4)),
                   const SizedBox(height: 4),
-                  Text('Ref: ${f.ref}', style: const TextStyle(fontSize: 10.2, fontStyle: FontStyle.italic, color: Color(0xFF10B981))),
+                  Text('Ref: ${f.ref}', style: const TextStyle(fontSize: 12.0, fontStyle: FontStyle.italic, color: Color(0xFF10B981))),
                 ],
               ),
             ),
@@ -305,7 +305,7 @@ class SrcTheoryCodePanel extends StatelessWidget {
                         Expanded(
                           child: RichText(
                             text: TextSpan(
-                              style: TextStyle(fontSize: 11.2, color: fg, height: 1.35),
+                              style: TextStyle(fontSize: 12.0, color: fg, height: 1.35),
                               children: [
                                 TextSpan(
                                   text: '$path  —  ',

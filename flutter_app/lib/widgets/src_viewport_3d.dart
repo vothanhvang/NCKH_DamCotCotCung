@@ -386,7 +386,7 @@ class _SrcViewport3DState extends State<SrcViewport3D> {
                             const SizedBox(width: 6),
                             Text(
                               '${tr(l, "Phẫu thuật", "Cut")} x/L=${widget.probeXNorm.toStringAsFixed(2)}',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: textCol),
+                              style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: textCol),
                             ),
                             Expanded(
                               child: SliderTheme(
@@ -415,7 +415,7 @@ class _SrcViewport3DState extends State<SrcViewport3D> {
                             const SizedBox(width: 5),
                             Text(
                               'Scale ×${widget.deformScale.toStringAsFixed(0)}',
-                              style: TextStyle(fontSize: 11, color: textCol),
+                              style: TextStyle(fontSize: 12.0, color: textCol),
                             ),
                             Expanded(
                               child: SliderTheme(
@@ -439,7 +439,7 @@ class _SrcViewport3DState extends State<SrcViewport3D> {
                       Text(
                         'M=${disAtCut.mzKnm.toStringAsFixed(1)} kN·m | N=${disAtCut.nKn.toStringAsFixed(0)} kN | x_NA=${disAtCut.xNaMm.toStringAsFixed(0)} mm | σ=[${disAtCut.sigMinMpa.toStringAsFixed(0)}, ${disAtCut.sigMaxMpa.toStringAsFixed(0)}] MPa',
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 12.0,
                           fontFamily: 'DejaVuSansMono',
                           color: dark ? const Color(0xFF7DD3FC) : const Color(0xFF0F3D6E),
                         ),
@@ -462,7 +462,7 @@ class _SrcViewport3DState extends State<SrcViewport3D> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(7), border: Border.all(color: border)),
-        child: Text(label, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: fg)),
+        child: Text(label, style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.w600, color: fg)),
       ),
     );
   }
@@ -492,7 +492,7 @@ class _SrcViewport3DState extends State<SrcViewport3D> {
           children: [
             Icon(icon, size: 13, color: active ? activeColor : fg.withValues(alpha: 0.75)),
             const SizedBox(width: 4),
-            Text(label, style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: active ? activeColor : fg)),
+            Text(label, style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.w600, color: active ? activeColor : fg)),
           ],
         ),
       ),
@@ -907,7 +907,7 @@ class _Src3DPainter extends CustomPainter {
       final tp = TextPainter(
         text: TextSpan(
           text: 'N=${result.demandPrimary.toStringAsFixed(0)} kN${ez > 0.5 ? " (e=${ez.toStringAsFixed(0)}mm)" : " (e=0)"}',
-          style: const TextStyle(color: Color(0xFFF43F5E), fontSize: 11, fontWeight: FontWeight.bold),
+          style: const TextStyle(color: Color(0xFFF43F5E), fontSize: 12.0, fontWeight: FontWeight.bold),
         ),
         textDirection: TextDirection.ltr,
       )..layout();

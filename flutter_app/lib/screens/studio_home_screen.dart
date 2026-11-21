@@ -122,7 +122,7 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(msg, style: const TextStyle(fontSize: 12)),
+          content: Text(msg, style: const TextStyle(fontSize: 12.0)),
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 4),
         ),
@@ -299,7 +299,7 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
                                   Text(
                                     tr(l, 'NCKH Cấp Quốc Gia • Dầm & Cột Bê Tông Cốt Cứng', 'National Research • Composite SRC Beams & Columns'),
                                     overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(fontSize: 9.8, color: fg.withValues(alpha: 0.68)),
+                                    style: TextStyle(fontSize: 12.0, color: fg.withValues(alpha: 0.68)),
                                   ),
                                 ],
                               ),
@@ -320,12 +320,12 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
                           ButtonSegment(
                             value: MemberKind.beam,
                             icon: const Icon(Icons.horizontal_rule, size: 15),
-                            label: Text(tr(l, 'Dầm Cốt Cứng', 'SRC Beam'), style: const TextStyle(fontSize: 11.2, fontWeight: FontWeight.bold)),
+                            label: Text(tr(l, 'Dầm Cốt Cứng', 'SRC Beam'), style: const TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold)),
                           ),
                           ButtonSegment(
                             value: MemberKind.column,
                             icon: const Icon(Icons.view_week, size: 15),
-                            label: Text(tr(l, 'Cột Cốt Cứng', 'SRC Column'), style: const TextStyle(fontSize: 11.2, fontWeight: FontWeight.bold)),
+                            label: Text(tr(l, 'Cột Cốt Cứng', 'SRC Column'), style: const TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold)),
                           ),
                         ],
                         selected: {_activeKind},
@@ -351,7 +351,7 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
                                 value: _contourField,
                                 isDense: true,
                                 dropdownColor: dark ? const Color(0xFF0F172A) : Colors.white,
-                                style: TextStyle(fontSize: 11, color: fg),
+                                style: TextStyle(fontSize: 12.0, color: fg),
                                 items: [
                                   DropdownMenuItem(value: ContourField.stressSigmaX, child: Text(tr(l, 'Trường σ_x (MPa)', 'Stress σ_x'))),
                                   DropdownMenuItem(value: ContourField.strainEpsX, child: Text(tr(l, 'Biến dạng ε_x (‰)', 'Strain ε_x'))),
@@ -390,7 +390,7 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
                                   const SizedBox(width: 4),
                                   Text(
                                     tr(l, 'Xuất Báo cáo & CAD', 'Export Report & CAD'),
-                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black),
+                                    style: const TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: Colors.black),
                                   ),
                                 ],
                               ),
@@ -427,7 +427,7 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
                                   const SizedBox(width: 4),
                                   Text(
                                     tr(l, 'Tác giả', 'Author'),
-                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF06B6D4)),
+                                    style: const TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: Color(0xFF06B6D4)),
                                   ),
                                 ],
                               ),
@@ -446,7 +446,7 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
                               ),
                               child: Text(
                                 _lang == AppLang.vi ? 'VI' : 'EN',
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF38BDF8)),
+                                style: const TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: Color(0xFF38BDF8)),
                               ),
                             ),
                           ),
@@ -471,7 +471,7 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
                     children: [
                       if (wide)
                         Container(
-                          width: 326,
+                          width: 350,
                           decoration: BoxDecoration(
                             border: Border(right: BorderSide(color: border)),
                           ),
@@ -489,7 +489,7 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
                                 labelColor: const Color(0xFF06B6D4),
                                 unselectedLabelColor: fg.withValues(alpha: 0.68),
                                 indicatorColor: const Color(0xFF06B6D4),
-                                labelStyle: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                                labelStyle: const TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold),
                                 tabs: [
                                   Tab(icon: const Icon(Icons.view_in_ar, size: 16), text: tr(l, 'Mô phỏng 3D', '3D View')),
                                   Tab(icon: const Icon(Icons.biotech, size: 16), text: tr(l, '2D & Phẫu thuật', '2D & Dissection')),
@@ -564,7 +564,7 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
                         child: Text(
                           _statusMsg ??
                               '${_cfg.name}  •  Ag=${_result.props.agMm2.toStringAsFixed(0)} mm²  •  ρa=${(_result.props.steelRatio * 100).toStringAsFixed(2)}%  •  ρs=${(_result.props.rebarRatio * 100).toStringAsFixed(2)}%  •  ${_result.fibers.length} ${tr(l, "thớ 2D", "2D fibers")}',
-                          style: TextStyle(fontSize: 10.5, fontFamily: 'DejaVuSansMono', color: fg.withValues(alpha: 0.8)),
+                          style: TextStyle(fontSize: 12.0, fontFamily: 'DejaVuSansMono', color: fg.withValues(alpha: 0.8)),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
@@ -606,13 +606,13 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
             child: DropdownButton<String>(
               isExpanded: true,
               value: null,
-              hint: Text(tr(l, 'Chọn mẫu chuẩn / Benchmark...', 'Select preset / Benchmark...'), style: TextStyle(fontSize: 11.2, color: fg)),
+              hint: Text(tr(l, 'Chọn mẫu chuẩn / Benchmark...', 'Select preset / Benchmark...'), style: TextStyle(fontSize: 12.0, color: fg)),
               dropdownColor: dark ? const Color(0xFF0F172A) : Colors.white,
               items: [
                 for (final p in presets)
                   DropdownMenuItem(
                     value: p.id,
-                    child: Text(l.isVi ? p.labelVi : p.labelEn, style: TextStyle(fontSize: 11, color: fg)),
+                    child: Text(l.isVi ? p.labelVi : p.labelEn, style: TextStyle(fontSize: 12.0, color: fg)),
                   ),
               ],
               onChanged: (id) {
@@ -630,7 +630,7 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
               child: OutlinedButton.icon(
                 onPressed: () => _applyConfig(presets.first.cfg),
                 icon: const Icon(Icons.restart_alt, size: 15),
-                label: Text(tr(l, 'Mặc định', 'Reset'), style: const TextStyle(fontSize: 11)),
+                label: Text(tr(l, 'Mặc định', 'Reset'), style: const TextStyle(fontSize: 12.0)),
                 style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
               ),
             ),
@@ -796,7 +796,7 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
         SwitchListTile(
           dense: true,
           contentPadding: EdgeInsets.zero,
-          title: Text(tr(l, 'Bật giam giữ 3 vùng (Chen & Lin)', '3-Zone Confinement (Chen & Lin)'), style: TextStyle(fontSize: 11.2, color: fg)),
+          title: Text(tr(l, 'Bật giam giữ 3 vùng (Chen & Lin)', '3-Zone Confinement (Chen & Lin)'), style: TextStyle(fontSize: 12.0, color: fg)),
           value: m.useConfinement,
           activeThumbColor: const Color(0xFF06B6D4),
           onChanged: (v) => _applyConfig(c.copyWith(material: m.copyWith(useConfinement: v))),
@@ -911,7 +911,7 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
             SwitchListTile(
               dense: true,
               contentPadding: EdgeInsets.zero,
-              title: Text(tr(l, 'Nhập theo độ lệch tâm e (mm)', 'Input via Eccentricity e (mm)'), style: TextStyle(fontSize: 11, color: fg)),
+              title: Text(tr(l, 'Nhập theo độ lệch tâm e (mm)', 'Input via Eccentricity e (mm)'), style: TextStyle(fontSize: 12.0, color: fg)),
               value: c.useEccInput,
               activeThumbColor: const Color(0xFF06B6D4),
               onChanged: (v) => _applyConfig(c.copyWith(useEccInput: v)),
@@ -952,17 +952,17 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
             Text(
               tr(l, 'Trường Đại học Bách Khoa - Đại học Quốc Gia TP. Hồ Chí Minh',
                   'Ho Chi Minh City University of Technology (VNU-HCM)'),
-              style: const TextStyle(fontSize: 12.2, fontWeight: FontWeight.bold, color: Color(0xFF38BDF8)),
+              style: const TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: Color(0xFF38BDF8)),
             ),
             const SizedBox(height: 6),
             Text(
               tr(l, 'Giảng viên hướng dẫn: PGS.TS Ngô Cường', 'Advisor: Assoc. Prof. Dr. Ngo Cuong'),
-              style: TextStyle(fontSize: 12, color: fg),
+              style: TextStyle(fontSize: 12.0, color: fg),
             ),
             const Divider(height: 18),
             Text(
               tr(l, 'Tác giả / Học viên thực hiện:', 'Author / Researcher:'),
-              style: TextStyle(fontSize: 11, color: fg.withValues(alpha: 0.7)),
+              style: TextStyle(fontSize: 12.0, color: fg.withValues(alpha: 0.7)),
             ),
             const SizedBox(height: 2),
             Text(
@@ -977,7 +977,7 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
                 Expanded(
                   child: SelectableText(
                     'Email: vothanhvang@gmail.com',
-                    style: TextStyle(fontSize: 12.2, color: fg),
+                    style: TextStyle(fontSize: 12.0, color: fg),
                   ),
                 ),
               ],
@@ -990,7 +990,7 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
                 Expanded(
                   child: SelectableText(
                     'Phone: 0973.993.494',
-                    style: TextStyle(fontSize: 12.2, color: fg, fontFamily: 'DejaVuSansMono'),
+                    style: TextStyle(fontSize: 12.0, color: fg, fontFamily: 'DejaVuSansMono'),
                   ),
                 ),
               ],
@@ -1016,7 +1016,7 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
           child: Text(
             txt,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF06B6D4), letterSpacing: 0.3),
+            style: const TextStyle(fontSize: 13.0, fontWeight: FontWeight.bold, color: Color(0xFF06B6D4), letterSpacing: 0.3),
           ),
         ),
       ],
@@ -1036,7 +1036,7 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 10.2, color: fg.withValues(alpha: 0.72))),
+        Text(label, style: TextStyle(fontSize: 12.0, color: fg.withValues(alpha: 0.72))),
         const SizedBox(height: 2),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1050,9 +1050,9 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
               isExpanded: true,
               isDense: true,
               value: value,
-              hint: hint != null ? Text(hint, style: TextStyle(fontSize: 11, color: fg)) : null,
+              hint: hint != null ? Text(hint, style: TextStyle(fontSize: 12.0, color: fg)) : null,
               dropdownColor: dark ? const Color(0xFF0F172A) : Colors.white,
-              style: TextStyle(fontSize: 11, color: fg),
+              style: TextStyle(fontSize: 12.0, color: fg),
               items: [for (final (v, lbl) in items) DropdownMenuItem(value: v, child: Text(lbl, overflow: TextOverflow.ellipsis))],
               onChanged: (v) {
                 if (v != null) onChanged(v);
@@ -1136,15 +1136,15 @@ class _NumericInputBoxState extends State<_NumericInputBox> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(widget.label, style: TextStyle(fontSize: 9.8, color: widget.fg.withValues(alpha: 0.72))),
+        Text(widget.label, style: TextStyle(fontSize: 12.0, color: widget.fg.withValues(alpha: 0.72))),
         const SizedBox(height: 2),
         SizedBox(
-          height: 30,
+          height: 34,
           child: TextField(
             controller: _ctrl,
             focusNode: _focus,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: TextStyle(fontSize: 11.2, fontFamily: 'DejaVuSansMono', color: widget.fg),
+            style: TextStyle(fontSize: 12.0, fontFamily: 'DejaVuSansMono', color: widget.fg),
             decoration: InputDecoration(
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),

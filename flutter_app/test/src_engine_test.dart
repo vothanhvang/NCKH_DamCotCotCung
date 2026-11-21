@@ -98,11 +98,14 @@ void main() {
       await tester.tap(find.text('Đóng'));
       await tester.pumpAndSettle();
 
-      // Kiểm tra tab 2D & Phẫu thuật — Chế độ 0 (Phòng thí nghiệm Tương tác Thép hình ↔ Bê tông) & Chế độ 1
+      // Kiểm tra tab 2D & Phẫu thuật — Chế độ 0 (Phòng thí nghiệm Tương tác Thép hình ↔ Bê tông) & Hệ số khuếch đại
       await tester.tap(find.text('2D & Phẫu thuật'));
       await tester.pumpAndSettle();
       expect(find.textContaining('GĐ1 (15%)'), findsOneWidget);
+      expect(find.textContaining('Khuếch đại'), findsOneWidget);
       expect(find.textContaining('PHÍA LÕI THÉP HÌNH'), findsOneWidget);
+      await tester.tap(find.text('×100'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('GĐ4 (98%)'));
       await tester.pumpAndSettle();
       // Chuyển sang Chế độ 1 (Toàn cấu kiện 2D & Phẫu thuật Khảo sát Tự do)

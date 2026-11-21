@@ -248,7 +248,7 @@ class SrcChartsMultiCodePanel extends StatelessWidget {
               children: [
                 Text(
                   tr(l, 'ĐỐI CHIẾU KIỂM TRA ĐA TIÊU CHUẨN QUỐC TẾ & VIỆT NAM', 'MULTI-CODE DESIGN VERIFICATION MATRIX'),
-                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: const Color(0xFF06B6D4)),
+                  style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: const Color(0xFF06B6D4)),
                 ),
                 const SizedBox(height: 8),
                 for (final c in result.codeChecks) _codeRowTile(c, isBeam, dark, fg, sub, l),
@@ -272,7 +272,7 @@ class SrcChartsMultiCodePanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(fontSize: 10.2, color: fg.withValues(alpha: 0.72))),
+          Text(title, style: TextStyle(fontSize: 12.0, color: fg.withValues(alpha: 0.72))),
           const SizedBox(height: 4),
           Text(
             value,
@@ -296,7 +296,7 @@ class SrcChartsMultiCodePanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(title, style: TextStyle(fontSize: 11.8, fontWeight: FontWeight.bold, color: fg)),
+          Text(title, style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: fg)),
           const SizedBox(height: 6),
           Expanded(child: child),
         ],
@@ -321,13 +321,13 @@ class SrcChartsMultiCodePanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              Expanded(child: Text(c.title, style: TextStyle(fontSize: 11.8, fontWeight: FontWeight.bold, color: fg))),
+              Expanded(child: Text(c.title, style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: fg))),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(color: barCol.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(6)),
                 child: Text(
                   'UR = ${(c.urTotal * 100).toStringAsFixed(1)}% • ${c.pass ? tr(l, "ĐẠT", "PASS") : tr(l, "CHƯA ĐẠT", "FAIL")}',
-                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, fontFamily: 'DejaVuSansMono', color: barCol),
+                  style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, fontFamily: 'DejaVuSansMono', color: barCol),
                 ),
               ),
             ],
@@ -347,7 +347,7 @@ class SrcChartsMultiCodePanel extends StatelessWidget {
             isBeam
                 ? 'M_Rd = ${c.capacityPrimary.toStringAsFixed(1)} kN·m (UR=${c.urPrimary.toStringAsFixed(2)})  |  V_Rd = ${c.capacitySecondary.toStringAsFixed(1)} kN (UR=${c.urSecondary.toStringAsFixed(2)})  |  ${c.extraNote}'
                 : 'N_Rd = ${c.capacityPrimary.toStringAsFixed(0)} kN (UR=${c.urPrimary.toStringAsFixed(2)})  |  M_cap = ${c.capacitySecondary.toStringAsFixed(1)} kN·m  |  ${c.extraNote}',
-            style: TextStyle(fontSize: 10.2, fontFamily: 'DejaVuSansMono', color: sub),
+            style: TextStyle(fontSize: 12.0, fontFamily: 'DejaVuSansMono', color: sub),
           ),
         ],
       ),
@@ -405,18 +405,18 @@ class _LineChartPainter extends CustomPainter {
       final yy = padT + ph * i / 4.0;
       canvas.drawLine(Offset(padL, yy), Offset(padL + pw, yy), gp);
       final valY = maxY * (1.0 - i / 4.0);
-      _txt(canvas, Offset(2, yy - 6), valY >= 100 ? valY.toStringAsFixed(0) : valY.toStringAsFixed(1), fg, 8.8);
+      _txt(canvas, Offset(2, yy - 6), valY >= 100 ? valY.toStringAsFixed(0) : valY.toStringAsFixed(1), fg, 12.0);
       final xx = padL + pw * i / 4.0;
       canvas.drawLine(Offset(xx, padT), Offset(xx, padT + ph), gp);
       final valX = maxX * i / 4.0;
-      _txt(canvas, Offset(xx - 12, padT + ph + 4), valX >= 100 ? valX.toStringAsFixed(0) : valX.toStringAsFixed(1), fg, 8.8);
+      _txt(canvas, Offset(xx - 12, padT + ph + 4), valX >= 100 ? valX.toStringAsFixed(0) : valX.toStringAsFixed(1), fg, 12.0);
     }
 
     if (hLineY != null && hLineY! > 0) {
       final hy = sy(hLineY!);
       canvas.drawLine(Offset(padL, hy), Offset(padL + pw, hy), Paint()..color = const Color(0xFFEF4444)..strokeWidth = 1.3);
       if (hLineLabel != null) {
-        _txt(canvas, Offset(padL + 6, hy - 13), '$hLineLabel (${hLineY!.toStringAsFixed(0)})', const Color(0xFFEF4444), 9.0);
+        _txt(canvas, Offset(padL + 6, hy - 13), '$hLineLabel (${hLineY!.toStringAsFixed(0)})', const Color(0xFFEF4444), 12.0);
       }
     }
 
@@ -436,8 +436,8 @@ class _LineChartPainter extends CustomPainter {
       canvas.drawCircle(lastPt, 4.0, Paint()..color = s.color);
     }
 
-    _txt(canvas, Offset(padL + pw - 42, padT + ph + 16), xLabel, fg, 9.2);
-    _txt(canvas, Offset(4, 2), yLabel, fg, 9.2);
+    _txt(canvas, Offset(padL + pw - 42, padT + ph + 16), xLabel, fg, 12.0);
+    _txt(canvas, Offset(4, 2), yLabel, fg, 12.0);
   }
 
   void _txt(Canvas c, Offset o, String s, Color col, double fs) {
@@ -482,10 +482,10 @@ class _NmInteractionPainter extends CustomPainter {
     for (int i = 0; i <= 4; i++) {
       final yy = padT + ph * i / 4.0;
       canvas.drawLine(Offset(padL, yy), Offset(padL + pw, yy), gp);
-      _txt(canvas, Offset(2, yy - 6), (maxN * (1 - i / 4.0)).toStringAsFixed(0), fg, 8.6);
+      _txt(canvas, Offset(2, yy - 6), (maxN * (1 - i / 4.0)).toStringAsFixed(0), fg, 12.0);
       final xx = padL + pw * i / 4.0;
       canvas.drawLine(Offset(xx, padT), Offset(xx, padT + ph), gp);
-      _txt(canvas, Offset(xx - 12, padT + ph + 4), (maxM * i / 4.0).toStringAsFixed(0), fg, 8.6);
+      _txt(canvas, Offset(xx - 12, padT + ph + 4), (maxM * i / 4.0).toStringAsFixed(0), fg, 12.0);
     }
 
     void drawCurve(List<Point2D> pts, Color col, double w) {
@@ -510,7 +510,7 @@ class _NmInteractionPainter extends CustomPainter {
     for (final p in result.ec4Polygon) {
       final o = Offset(sx(p.x), sy(p.y));
       canvas.drawCircle(o, 3.2, Paint()..color = const Color(0xFFEF4444));
-      if (p.label.isNotEmpty) _txt(canvas, o + const Offset(4, -10), p.label, const Color(0xFFEF4444), 9.0);
+      if (p.label.isNotEmpty) _txt(canvas, o + const Offset(4, -10), p.label, const Color(0xFFEF4444), 12.0);
     }
 
     // Điểm nội lực bậc 1 -> Mũi tên P-δ -> Điểm bậc 2
@@ -520,9 +520,9 @@ class _NmInteractionPainter extends CustomPainter {
     canvas.drawCircle(p1, 5.0, Paint()..color = const Color(0xFF10B981));
     canvas.drawCircle(p2, 5.5, Paint()..color = const Color(0xFFF59E0B));
 
-    _txt(canvas, Offset(padL + 6, padT + 2), '— Fiber Design  — EC4 A-E-C-D-B  ● M_I → M_II (P-δ)', fg, 8.6);
-    _txt(canvas, Offset(padL + pw - 52, padT + ph + 16), 'M_z (kN·m)', fg, 9.0);
-    _txt(canvas, Offset(4, 2), 'N (kN)', fg, 9.0);
+    _txt(canvas, Offset(padL + 6, padT + 2), '— Fiber Design  — EC4 A-E-C-D-B  ● M_I → M_II (P-δ)', fg, 12.0);
+    _txt(canvas, Offset(padL + pw - 52, padT + ph + 16), 'M_z (kN·m)', fg, 12.0);
+    _txt(canvas, Offset(4, 2), 'N (kN)', fg, 12.0);
   }
 
   void _txt(Canvas c, Offset o, String s, Color col, double fs) {

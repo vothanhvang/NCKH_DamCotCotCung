@@ -49,6 +49,7 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
   double _probeZMm = 0.0;
   bool _showConnectionOverlay = true;
   int _subMode = 0; // 0: Phòng thí nghiệm Tương tác Chi tiết Thép hình ↔ Bê tông | 1: Toàn cấu kiện 2D & Phẫu thuật tự do
+  double _mag2D = 25.0; // Hệ số khuếch đại biến dạng trong chế độ toàn cấu kiện 2D
 
   @override
   Widget build(BuildContext context) {
@@ -151,31 +152,57 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
                         '1. Mô phỏng 2D Dọc Cấu kiện & Liên kết Thép hình – BTCT (Chạm để kéo x/L)',
                         '1. 2D Longitudinal Steel–RC Interaction View (Tap/drag cut plane x/L)',
                       ),
-                      style: TextStyle(fontSize: 11.8, fontWeight: FontWeight.bold, color: fg),
+                      style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: fg),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const SizedBox(width: 6),
                   Text(
                     'x/L=${widget.probeXNorm.toStringAsFixed(2)} (${dis.xMm.toStringAsFixed(0)} mm)',
-                    style: const TextStyle(fontSize: 10.6, fontFamily: 'DejaVuSansMono', color: Color(0xFFF59E0B), fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontSize: 12.0, fontFamily: 'DejaVuSansMono', color: Color(0xFFF59E0B), fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
               const SizedBox(height: 5),
-              // Chú giải cấu tạo liên kết dọc
+              // Chú giải cấu tạo liên kết dọc + Thanh trượt Khuếch đại biến dạng 2D
               Wrap(
                 spacing: 10,
                 runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   _legendDot(const Color(0xFFEF4444), tr(l, 'Lõi thép hình H', 'Steel H-Core'), sub),
                   _legendDot(const Color(0xFF10B981), tr(l, 'Cốt thép dọc & Đai', 'Rebar & Stirrups'), sub),
                   _legendDot(const Color(0xFFF59E0B),
                       isBeam ? tr(l, 'Đinh neo & Lực trượt v_L', 'Shear Studs & Flow v_L') : tr(l, 'Vùng truyền lực l_V & Ma sát τ_b', 'Load Intro l_V & Bond τ_b'), sub),
                   _legendDot(const Color(0xFFF43F5E), tr(l, 'Vết nứt kéo BT', 'Concrete Cracks'), sub),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('${tr(l, "Khuếch đại", "Mag")}: ×${_mag2D.toStringAsFixed(0)}',
+                          style: const TextStyle(fontSize: 12.0, fontFamily: 'DejaVuSansMono', fontWeight: FontWeight.bold, color: Color(0xFFA855F7))),
+                      SizedBox(
+                        width: 96,
+                        child: SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            trackHeight: 3,
+                            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                            overlayShape: const RoundSliderOverlayShape(overlayRadius: 10),
+                          ),
+                          child: Slider(
+                            value: _mag2D,
+                            min: 1.0,
+                            max: 100.0,
+                            activeColor: const Color(0xFFA855F7),
+                            inactiveColor: border,
+                            onChanged: (v) => setState(() => _mag2D = v),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Expanded(
                 child: LayoutBuilder(
                   builder: (ctx, c2) {
@@ -188,6 +215,7 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
                           result: res,
                           dis: dis,
                           probeXNorm: widget.probeXNorm,
+                          magFactor: _mag2D,
                           darkMode: dark,
                           lang: l,
                         ),
@@ -222,7 +250,7 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
                               child: Text(
                                 tr(l, 'ỨNG XỬ LIÊN KẾT CỐT CỨNG ↔ BTCT (x/L=${widget.probeXNorm.toStringAsFixed(2)})',
                                     'STEEL CORE ↔ RC INTERFACE (x/L=${widget.probeXNorm.toStringAsFixed(2)})'),
-                                style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: fg),
+                                style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: fg),
                               ),
                             ),
                           ],
@@ -236,7 +264,7 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
                           ),
                           child: Text(
                             l.isVi ? dis.bondStateVi : dis.bondStateEn,
-                            style: TextStyle(fontSize: 9.2, fontWeight: FontWeight.bold, color: bondColor),
+                            style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: bondColor),
                           ),
                         ),
                       ],
@@ -247,7 +275,7 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
                       children: [
                         Text(
                           isBeam ? tr(l, 'Chia tải M_z:', 'Moment Share:') : tr(l, 'Chia tải N:', 'Axial Share:'),
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: sub),
+                          style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: sub),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
@@ -286,15 +314,15 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
                       children: [
                         Text(
                           '${tr(l, "Thép hình H", "Steel H")}: ${dis.steelSharePct.toStringAsFixed(1)}% (${isBeam ? "${dis.mzSteelKnm.toStringAsFixed(1)} kNm" : "${dis.nSteelKn.toStringAsFixed(0)} kN"})',
-                          style: const TextStyle(fontSize: 9.8, fontWeight: FontWeight.bold, color: Color(0xFFEF4444)),
+                          style: const TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: Color(0xFFEF4444)),
                         ),
                         Text(
                           '${tr(l, "Bê tông", "Concrete")}: ${dis.concreteSharePct.toStringAsFixed(1)}% (${isBeam ? "${dis.mzConcreteKnm.toStringAsFixed(1)} kNm" : "${dis.nConcreteKn.toStringAsFixed(0)} kN"})',
-                          style: const TextStyle(fontSize: 9.8, fontWeight: FontWeight.bold, color: Color(0xFF38BDF8)),
+                          style: const TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: Color(0xFF38BDF8)),
                         ),
                         Text(
                           '${tr(l, "Cốt thép", "Rebar")}: ${dis.rebarSharePct.toStringAsFixed(1)}% (${isBeam ? "${dis.mzRebarKnm.toStringAsFixed(1)} kNm" : "${dis.nRebarKn.toStringAsFixed(0)} kN"})',
-                          style: const TextStyle(fontSize: 9.8, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+                          style: const TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
                         ),
                       ],
                     ),
@@ -341,7 +369,7 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
                     child: Text(
                       tr(l, '2. Phẫu thuật Mặt cắt & Vòm Giam giữ — Chạm điểm (y, z)',
                           '2. Cross-Section Dissection & Confinement — Tap any (y, z)'),
-                      style: TextStyle(fontSize: 11.8, fontWeight: FontWeight.bold, color: fg),
+                      style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: fg),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
@@ -363,7 +391,7 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
                           Text(
                             tr(l, 'Liên kết & Vòm', 'Bond & Arch'),
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: 12.0,
                               fontWeight: FontWeight.bold,
                               color: _showConnectionOverlay ? const Color(0xFFF59E0B) : sub,
                             ),
@@ -441,7 +469,7 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
                         Expanded(
                           child: Text(
                             '${tr(l, "ĐIỂM KHẢO SÁT", "PROBE POINT")} (x=${probe.xMm.toStringAsFixed(0)}, y=${probe.yMm.toStringAsFixed(1)}, z=${probe.zMm.toStringAsFixed(1)} mm) — ${l.isVi ? probe.materialVi : probe.materialEn}',
-                            style: TextStyle(fontSize: 10.8, fontWeight: FontWeight.bold, color: fg),
+                            style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: fg),
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -450,7 +478,7 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
                     const SizedBox(height: 3),
                     Text(
                       '${l.isVi ? probe.zoneVi : probe.zoneEn}  •  ${tr(l, "Trạng thái", "State")}: ${l.isVi ? probe.stateVi : probe.stateEn}',
-                      style: TextStyle(fontSize: 10.2, color: sub),
+                      style: TextStyle(fontSize: 12.0, color: sub),
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 5),
@@ -531,7 +559,7 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
               child: Text(
                 label,
                 style: TextStyle(
-                  fontSize: 10.8,
+                  fontSize: 12.0,
                   fontWeight: FontWeight.bold,
                   color: active ? accent : fg.withValues(alpha: 0.78),
                 ),
@@ -550,7 +578,7 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
       children: [
         Container(width: 8, height: 8, decoration: BoxDecoration(color: col, borderRadius: BorderRadius.circular(2))),
         const SizedBox(width: 4),
-        Text(txt, style: TextStyle(fontSize: 9.6, color: fg)),
+        Text(txt, style: TextStyle(fontSize: 12.0, color: fg)),
       ],
     );
   }
@@ -583,7 +611,7 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
       ),
       child: RichText(
         text: TextSpan(
-          style: TextStyle(fontSize: 10.0, fontFamily: 'DejaVuSansMono', color: dark ? Colors.white : const Color(0xFF0F172A)),
+          style: TextStyle(fontSize: 12.0, fontFamily: 'DejaVuSansMono', color: dark ? Colors.white : const Color(0xFF0F172A)),
           children: [
             TextSpan(text: '$k: ', style: TextStyle(color: accent, fontWeight: FontWeight.bold)),
             TextSpan(text: v, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -598,6 +626,7 @@ class _Longitudinal2DPainter extends CustomPainter {
   final SrcAnalysisResult result;
   final DissectionResult dis;
   final double probeXNorm;
+  final double magFactor;
   final bool darkMode;
   final AppLang lang;
 
@@ -605,6 +634,7 @@ class _Longitudinal2DPainter extends CustomPainter {
     required this.result,
     required this.dis,
     required this.probeXNorm,
+    required this.magFactor,
     required this.darkMode,
     required this.lang,
   });
@@ -624,10 +654,11 @@ class _Longitudinal2DPainter extends CustomPainter {
     // PHẦN TRÊN: THÂN CẤU KIỆN 2D + CỐT ĐAI + CỐT THÉP + LÕI THÉP H + ĐINH NEO + DÒNG TRƯỢT v_L
     // =========================================================================
     final topH = size.height * 0.52;
-    final cyMem = topH * 0.54;
-    final memH = math.min(topH * 0.60, 88.0);
+    final cyMem = topH * 0.50;
+    final memH = math.min(topH * 0.56, 82.0);
     final maxD = result.profileDeflMm.fold<double>(0.1, (a, b) => math.max(a, b.abs()));
-    final dAmp = math.min(18.0, topH * 0.14) / maxD;
+    final magRatio = (magFactor / 25.0).clamp(0.05, 4.0);
+    final dAmp = (math.min(18.0, topH * 0.14) * magRatio).clamp(0.5, topH * 0.34) / maxD;
 
     final nP = result.profileXMm.length;
     final maxM = result.profileMKnm.fold<double>(1.0, (a, b) => math.max(a, b.abs()));
@@ -780,7 +811,7 @@ class _Longitudinal2DPainter extends CustomPainter {
       final introPaint = Paint()..color = const Color(0xFFF59E0B).withValues(alpha: 0.18);
       canvas.drawRect(Rect.fromLTWH(padL, cyMem - 0.5 * memH, lIntroNorm * plotW, memH), introPaint);
       canvas.drawRect(Rect.fromLTWH(padL + (1 - lIntroNorm) * plotW, cyMem - 0.5 * memH, lIntroNorm * plotW, memH), introPaint);
-      _drawTxt(canvas, Offset(padL + 3, cyMem - 0.5 * memH - 12), 'l_V (EC4 §6.7.4)', const Color(0xFFF59E0B), 8.5);
+      _drawTxt(canvas, Offset(padL + 3, cyMem - 0.5 * memH - 12), 'l_V (EC4 §6.7.4)', const Color(0xFFF59E0B), 12.0);
     }
 
     // 6. Vẽ MŨI TÊN DÒNG TRƯỢT TIẾP XÚC τ_b / v_L dọc bề mặt cánh thép – bê tông
@@ -1257,9 +1288,9 @@ class _StrainStressProfilePainter extends CustomPainter {
       tp.paint(canvas, Offset((x - tp.width * 0.5).clamp(2.0, math.max(2.0, size.width - tp.width - 2)), y));
     }
 
-    label('ε_a=ε_c (‰)', xEps0, 3, const Color(0xFF38BDF8), 8.8);
-    label('σ_c & σ_a', xSig0, 3, const Color(0xFFF59E0B), 8.8);
-    label(tr(lang, 'Vàng: BT | Đỏ: Thép H', 'Amber: RC | Red: Steel'), size.width * 0.5, size.height - 14, fg.withValues(alpha: 0.72), 8.2);
+    label('ε_a=ε_c (‰)', xEps0, 3, const Color(0xFF38BDF8), 12.0);
+    label('σ_c & σ_a', xSig0, 3, const Color(0xFFF59E0B), 12.0);
+    label(tr(lang, 'Vàng: BT | Đỏ: Thép H', 'Amber: RC | Red: Steel'), size.width * 0.5, size.height - 14, fg.withValues(alpha: 0.72), 12.0);
   }
 
   @override
