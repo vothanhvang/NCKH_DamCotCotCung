@@ -754,6 +754,20 @@ class DissectionResult {
   final double nKn, mzKnm, myKnm, vShearKn, xNaMm;
   final double sigMinMpa, sigMaxMpa, epsMin, epsMax;
   final List<DissectedFiber> fibers;
+  // Thông số tương tác liên kết Cốt cứng (Thép hình) ↔ Bê tông cốt thép tại mặt cắt x/L
+  final double nSteelKn, nConcreteKn, nRebarKn;
+  final double mzSteelKnm, mzConcreteKnm, mzRebarKnm;
+  final double steelSharePct, concreteSharePct, rebarSharePct;
+  final double bondPerimeterMm;
+  final double vInterfaceKnPerM; // Lực trượt dọc mặt tiếp xúc v_L (kN/m)
+  final double tauBondMpa; // Ứng suất dính bám dọc bề mặt thép hình – bê tông (MPa)
+  final double tauRdMpa; // Khả năng dính bám thiết kế EC4 §6.7.4.2 + ma sát giam giữ (MPa)
+  final double studForceKn; // Lực cắt tác dụng lên 1 đinh chống cắt tại x/L (kN)
+  final double studUr; // Tỷ số sử dụng đinh neo F_stud / P_Rd
+  final double splitUr; // Tỷ số rủi ro cắt tách dọc cánh thép Weng (2002)
+  final double slipMm; // Trượt tương đối vi mô tại mặt tiếp xúc thép – bê tông (mm)
+  final int bondStatusLevel; // 0 = Tốt (Xanh), 1 = Đinh neo/Ma sát hoạt động (Vàng), 2 = Cảnh báo (Đỏ)
+  final String bondStateVi, bondStateEn;
 
   const DissectionResult({
     required this.xNorm,
@@ -771,6 +785,26 @@ class DissectionResult {
     required this.epsMin,
     required this.epsMax,
     required this.fibers,
+    required this.nSteelKn,
+    required this.nConcreteKn,
+    required this.nRebarKn,
+    required this.mzSteelKnm,
+    required this.mzConcreteKnm,
+    required this.mzRebarKnm,
+    required this.steelSharePct,
+    required this.concreteSharePct,
+    required this.rebarSharePct,
+    required this.bondPerimeterMm,
+    required this.vInterfaceKnPerM,
+    required this.tauBondMpa,
+    required this.tauRdMpa,
+    required this.studForceKn,
+    required this.studUr,
+    required this.splitUr,
+    required this.slipMm,
+    required this.bondStatusLevel,
+    required this.bondStateVi,
+    required this.bondStateEn,
   });
 }
 
@@ -3273,12 +3307,16 @@ class SrcNonlinearEngine {
 
   static DissectionResult dissectSection(SrcAnalysisResult res, double xNorm) {
     final kin = _interpKinematics(res, xNorm);
-    final g = res.config.geometry;
-    final m = res.config.material;
+    final cfg = res.config;
+    final g = cfg.geometry;
+    final m = cfg.material;
+    final isBeam = cfg.kind == MemberKind.beam;
     final hwSt = math.max(10.0, g.haMm - 2 * g.tfMm);
 
     final outFibs = <DissectedFiber>[];
     double nSum = 0, mzSum = 0, mySum = 0;
+    double nConc = 0, nSteel = 0, nRebar = 0;
+    double mzConc = 0, mzSteel = 0, mzRebar = 0;
     double sMin = double.infinity, sMax = double.negativeInfinity;
     double eMin = double.infinity, eMax = double.negativeInfinity;
 
@@ -3291,12 +3329,21 @@ class SrcNonlinearEngine {
         sig = r.sig;
         stVi = r.stVi;
         stEn = r.stEn;
+        nConc += -sig * f.areaMm2 / 1000.0;
+        mzConc += -sig * f.yMm * f.areaMm2 / 1e6;
       } else {
         final bh = f.kind.startsWith('steel') ? m.hardeningSteel : m.hardeningRebar;
         final r = steelLaw(eps, f.esMpa, f.fyMpa, bh, true);
         sig = r.sig;
         stVi = r.stVi;
         stEn = r.stEn;
+        if (f.kind.startsWith('steel')) {
+          nSteel += -sig * f.areaMm2 / 1000.0;
+          mzSteel += -sig * f.yMm * f.areaMm2 / 1e6;
+        } else {
+          nRebar += -sig * f.areaMm2 / 1000.0;
+          mzRebar += -sig * f.yMm * f.areaMm2 / 1e6;
+        }
       }
       final parab = math.max(0.0, 1.0 - math.pow(2.0 * f.yMm / math.max(1.0, g.hMm), 2));
       final double tau;
@@ -3332,9 +3379,123 @@ class SrcNonlinearEngine {
         ? (0.5 * g.hMm - kin.eps0 / kin.kz).clamp(0.0, g.hMm)
         : (kin.eps0 < 0 ? g.hMm : 0.0);
 
+    // =========================================================================
+    // PHÂN TÍCH ỨNG XỬ LIÊN KẾT CỐT CỨNG (THÉP HÌNH) ↔ BÊ TÔNG CỐT THÉP TẠI x/L
+    // =========================================================================
+    final xNormC = xNorm.clamp(0.0, 1.0);
+    final lMm = res.xNodesMm.last;
+    final xMm = xNormC * lMm;
+
+    // 1. Tỷ lệ phân chia nội lực giữa Thép hình — Bê tông — Cốt thép thanh
+    double steelPct, concPct, rebarPct;
+    final eiA = m.esSteelMpa * res.props.iaZMm4;
+    final eiC = m.ecMpa * res.props.icZMm4;
+    final eiS = m.esRebarMpa * res.props.isZMm4;
+    final eiTot = math.max(1.0, eiA + eiC + eiS);
+
+    if (isBeam) {
+      final totM = mzSteel.abs() + mzConc.abs() + mzRebar.abs();
+      if (totM > 1.0) {
+        steelPct = 100.0 * mzSteel.abs() / totM;
+        concPct = 100.0 * mzConc.abs() / totM;
+        rebarPct = math.max(0.0, 100.0 - steelPct - concPct);
+      } else {
+        steelPct = 100.0 * eiA / eiTot;
+        concPct = 100.0 * eiC / eiTot;
+        rebarPct = math.max(0.0, 100.0 - steelPct - concPct);
+      }
+    } else {
+      final totN = nSteel.abs() + nConc.abs() + nRebar.abs();
+      if (totN > 1.0) {
+        steelPct = 100.0 * nSteel.abs() / totN;
+        concPct = 100.0 * nConc.abs() / totN;
+        rebarPct = math.max(0.0, 100.0 - steelPct - concPct);
+      } else {
+        steelPct = 35.0;
+        concPct = 55.0;
+        rebarPct = 10.0;
+      }
+    }
+
+    // 2. Chu vi tiếp xúc thép hình – bê tông u_a (mm) & lực trượt dọc mặt tiếp xúc v_L (kN/m)
+    final double uBondMm;
+    final double tauRd0;
+    if (g.sectionType == 'COL_RECT_CFST') {
+      uBondMm = math.pi * g.haMm + math.pi * math.max(20.0, g.haMm - 2.0 * g.twMm);
+      tauRd0 = 0.55;
+    } else if (g.sectionType == 'COL_RECT_CROSS_H') {
+      uBondMm = 8.0 * g.baMm + 4.0 * math.max(10.0, g.haMm - 2.0 * g.tfMm) - 6.0 * g.twMm;
+      tauRd0 = 0.30;
+    } else {
+      uBondMm = 4.0 * g.baMm + 2.0 * math.max(10.0, g.haMm - 2.0 * g.tfMm) - 2.0 * g.twMm;
+      tauRd0 = 0.30;
+    }
+
+    final alphaA = (eiA / eiTot).clamp(0.25, 0.75);
+    final zLevM = 0.85 * math.max(g.haMm, 0.70 * g.hMm) / 1000.0;
+    final vFlexKnM = (kin.vShearN.abs() / 1000.0) * alphaA / math.max(0.15, zLevM);
+
+    double vIntroKnM = 0.0;
+    if (!isBeam) {
+      final lIntroMm = math.min(2.0 * g.hMm, lMm / 3.0);
+      final distEnd = math.min(xMm, lMm - xMm);
+      final phiIntro = math.max(0.0, 1.0 - distEnd / math.max(100.0, lIntroMm));
+      vIntroKnM = nSteel.abs() * (1.0 - steelPct / 100.0) / math.max(0.25, lIntroMm / 1000.0) * phiIntro;
+    }
+
+    final vInterfaceKnM = vFlexKnM + vIntroKnM;
+    final tauBondMpa = vInterfaceKnM / math.max(100.0, uBondMm);
+    final tauRdEff = tauRd0 + 0.25 * res.conf.flP;
+
+    final studForceKn = isBeam ? vInterfaceKnM * (cfg.studSpacingMm / 1000.0) / math.max(1, cfg.studRows) : 0.0;
+    final studUr = isBeam ? studForceKn / math.max(1.0, res.studPRdKn) : 0.0;
+    final splitUr = isBeam ? (kin.vShearN.abs() / 1000.0) / math.max(1.0, res.vSplitKn) : 0.0;
+
+    const kBond = 12.0; // MPa/mm
+    final double slipMm;
+    final int bondLevel;
+    final String bondVi, bondEn;
+
+    if (isBeam) {
+      final kStud = math.max(40.0, 0.7 * res.studPRdKn / 0.5);
+      slipMm = tauBondMpa <= tauRd0
+          ? tauBondMpa / kBond
+          : 0.025 + math.max(0.0, studForceKn - 0.25 * res.studPRdKn) / kStud;
+      if (studUr > 1.0 || splitUr > 1.0) {
+        bondLevel = 2;
+        bondVi = 'Cảnh báo trượt / Tách dọc cánh thép';
+        bondEn = 'Slip / Flange Splitting Warning';
+      } else if (tauBondMpa > tauRd0 || studUr > 0.45) {
+        bondLevel = 1;
+        bondVi = 'Đinh neo & Ma sát đang chịu trượt tích cực';
+        bondEn = 'Mechanical Shear Studs & Friction Active';
+      } else {
+        bondLevel = 0;
+        bondVi = 'Liên kết hoàn toàn — Dính bám đàn hồi';
+        bondEn = 'Full Composite Action — Elastic Bond';
+      }
+    } else {
+      slipMm = tauBondMpa <= tauRdEff
+          ? tauBondMpa / kBond
+          : 0.025 + (tauBondMpa - tauRdEff) / 2.5;
+      if (tauBondMpa > tauRdEff) {
+        bondLevel = 2;
+        bondVi = 'Vượt dính bám tự nhiên — Cần tăng đinh neo / đai dày';
+        bondEn = 'Bond Exceeded — Add Studs / Tighter Stirrups';
+      } else if (tauBondMpa > 0.55 * tauRdEff || res.conf.flH > 1.0) {
+        bondLevel = 1;
+        bondVi = 'Ma sát & Giam giữ vòm lõi thép H hoạt động tích cực';
+        bondEn = 'Friction & H-Steel Arching Confinement Active';
+      } else {
+        bondLevel = 0;
+        bondVi = 'Liên kết hoàn toàn — Biến dạng tương thích';
+        bondEn = 'Full Bond — Strain Compatibility';
+      }
+    }
+
     return DissectionResult(
-      xNorm: xNorm.clamp(0.0, 1.0),
-      xMm: xNorm.clamp(0.0, 1.0) * res.xNodesMm.last,
+      xNorm: xNormC,
+      xMm: xMm,
       eps0: kin.eps0,
       kappaZ: kin.kz,
       kappaY: 0,
@@ -3348,6 +3509,26 @@ class SrcNonlinearEngine {
       epsMin: eMin.isFinite ? eMin : -0.001,
       epsMax: eMax.isFinite ? eMax : 0.001,
       fibers: outFibs,
+      nSteelKn: nSteel,
+      nConcreteKn: nConc,
+      nRebarKn: nRebar,
+      mzSteelKnm: mzSteel,
+      mzConcreteKnm: mzConc,
+      mzRebarKnm: mzRebar,
+      steelSharePct: steelPct,
+      concreteSharePct: concPct,
+      rebarSharePct: rebarPct,
+      bondPerimeterMm: uBondMm,
+      vInterfaceKnPerM: vInterfaceKnM,
+      tauBondMpa: tauBondMpa,
+      tauRdMpa: tauRdEff,
+      studForceKn: studForceKn,
+      studUr: studUr,
+      splitUr: splitUr,
+      slipMm: slipMm,
+      bondStatusLevel: bondLevel,
+      bondStateVi: bondVi,
+      bondStateEn: bondEn,
     );
   }
 

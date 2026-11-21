@@ -654,8 +654,9 @@ def _render_drawing_pdf(analysis: Dict[str, object], out_path: str, lang: str = 
     c.rect(tx, ty + 31 * mm, 168 * mm, 11 * mm, fill=1, stroke=0)
     c.setFillColor(colors.white)
     c.setFont(font_bold, 8.5)
-    hdr_txt = "BẢN VẼ THI CÔNG & GIA CÔNG CHẾ TẠO — NCKH CẤP QUỐC GIA (SRC/CES)" if lang == "vi" else "CONSTRUCTION & FABRICATION SHOP DRAWING — NATIONAL RESEARCH (SRC/CES)"
-    c.drawString(tx + 4 * mm, ty + 34.8 * mm, hdr_txt)
+    hdr_txt = "ĐH BÁCH KHOA - ĐHQG TP.HCM | GVHD: PGS.TS NGÔ CƯỜNG | HVTH: VÕ THANH VANG (2670624)" if lang == "vi" else "HCMUT (VNU-HCM) | ADVISOR: ASSOC. PROF. DR. NGO CUONG | VO THANH VANG (2670624)"
+    c.setFont(font_bold, 6.8)
+    c.drawString(tx + 3 * mm, ty + 34.8 * mm, hdr_txt)
 
     c.setFillColor(colors.HexColor("#0F172A"))
     c.setFont(font_bold, 9.5)

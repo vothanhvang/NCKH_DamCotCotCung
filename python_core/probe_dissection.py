@@ -181,6 +181,12 @@ def dissect_section_2d(analysis: Dict[str, object], x_norm: float = 0.5) -> Dict
     n_sum = 0.0
     mz_sum = 0.0
     my_sum = 0.0
+    n_conc = 0.0
+    n_steel = 0.0
+    n_rebar = 0.0
+    mz_conc = 0.0
+    mz_steel = 0.0
+    mz_rebar = 0.0
     sig_min = 1e18
     sig_max = -1e18
     eps_min = 1e18
@@ -190,9 +196,17 @@ def dissect_section_2d(analysis: Dict[str, object], x_norm: float = 0.5) -> Dict
         eps = eps0 - f.y_mm * kz + f.z_mm * ky
         if f.kind == "concrete":
             sig, et, state = concrete_stress_tangent(eps, mat, f.zone, conf, True)
+            n_conc += -sig * f.area_mm2 / 1000.0
+            mz_conc += -sig * f.y_mm * f.area_mm2 / 1e6
         else:
             bh = mat.hardening_steel if f.kind.startswith("steel") else mat.hardening_rebar
             sig, et, state = steel_stress_tangent(eps, f.es_mpa, f.fy_mpa, bh, True)
+            if f.kind.startswith("steel"):
+                n_steel += -sig * f.area_mm2 / 1000.0
+                mz_steel += -sig * f.y_mm * f.area_mm2 / 1e6
+            else:
+                n_rebar += -sig * f.area_mm2 / 1000.0
+                mz_rebar += -sig * f.y_mm * f.area_mm2 / 1e6
 
         n_sum += sig * f.area_mm2
         mz_sum -= sig * f.y_mm * f.area_mm2
@@ -220,9 +234,100 @@ def dissect_section_2d(analysis: Dict[str, object], x_norm: float = 0.5) -> Dict
     x_na = (0.5 * geom.h_mm - eps0 / kz) if abs(kz) > 1e-11 else (geom.h_mm if eps0 < 0 else 0.0)
     x_na = max(0.0, min(geom.h_mm, x_na))
 
+    # =========================================================================
+    # PHÂN TÍCH ỨNG XỬ LIÊN KẾT CỐT CỨNG (THÉP HÌNH) ↔ BÊ TÔNG CỐT THÉP TẠI x/L
+    # (Tỷ lệ chia tải, lực trượt mặt tiếp xúc v_L, dính bám τ_b, đinh neo & trượt vi mô)
+    # =========================================================================
+    is_beam = (analysis.get("member_kind") == "beam")
+    L_mm = float(analysis["x_nodes_mm"][-1])
+    x_mm = max(0.0, min(1.0, x_norm)) * L_mm
+    props = analysis["props"]
+
+    # 1. Tỷ lệ phân chia nội lực giữa Thép hình — Bê tông — Cốt thép thanh
+    if is_beam:
+        tot_m = abs(mz_steel) + abs(mz_conc) + abs(mz_rebar)
+        if tot_m > 1.0:
+            steel_pct = 100.0 * abs(mz_steel) / tot_m
+            conc_pct = 100.0 * abs(mz_conc) / tot_m
+            rebar_pct = max(0.0, 100.0 - steel_pct - conc_pct)
+        else:
+            ei_a = mat.es_steel_mpa * props.ia_z_mm4
+            ei_c = mat.ec_mpa * props.ic_z_mm4
+            ei_s = mat.es_rebar_mpa * props.is_z_mm4
+            ei_t = max(1.0, ei_a + ei_c + ei_s)
+            steel_pct = 100.0 * ei_a / ei_t
+            conc_pct = 100.0 * ei_c / ei_t
+            rebar_pct = max(0.0, 100.0 - steel_pct - conc_pct)
+    else:
+        tot_n = abs(n_steel) + abs(n_conc) + abs(n_rebar)
+        if tot_n > 1.0:
+            steel_pct = 100.0 * abs(n_steel) / tot_n
+            conc_pct = 100.0 * abs(n_conc) / tot_n
+            rebar_pct = max(0.0, 100.0 - steel_pct - conc_pct)
+        else:
+            steel_pct, conc_pct, rebar_pct = 35.0, 55.0, 10.0
+
+    # 2. Chu vi tiếp xúc thép hình – bê tông u_a (mm) & Lực trượt dọc v_L (kN/m)
+    if geom.section_type == "COL_RECT_CFST":
+        u_bond_mm = math.pi * geom.ha_mm + math.pi * max(20.0, geom.ha_mm - 2.0 * geom.tw_mm)
+        tau_rd0 = 0.55
+    elif geom.section_type == "COL_RECT_CROSS_H":
+        u_bond_mm = 8.0 * geom.ba_mm + 4.0 * max(10.0, geom.ha_mm - 2.0 * geom.tf_mm) - 6.0 * geom.tw_mm
+        tau_rd0 = 0.30
+    else:
+        u_bond_mm = 4.0 * geom.ba_mm + 2.0 * max(10.0, geom.ha_mm - 2.0 * geom.tf_mm) - 2.0 * geom.tw_mm
+        tau_rd0 = 0.30
+
+    ei_a = mat.es_steel_mpa * props.ia_z_mm4
+    ei_tot = max(1.0, ei_a + mat.ec_mpa * props.ic_z_mm4 + mat.es_rebar_mpa * props.is_z_mm4)
+    alpha_a = max(0.25, min(0.75, ei_a / ei_tot))
+    z_lev_m = 0.85 * max(geom.ha_mm, 0.70 * geom.h_mm) / 1000.0
+    v_flex_kn_m = abs(v_shear_n / 1000.0) * alpha_a / max(0.15, z_lev_m)
+
+    # Vùng truyền lực đầu cột l_V = min(2h, L/3) theo EN 1994-1-1 §6.7.4.2
+    v_intro_kn_m = 0.0
+    if not is_beam:
+        l_intro_mm = min(2.0 * geom.h_mm, L_mm / 3.0)
+        dist_end = min(x_mm, L_mm - x_mm)
+        phi_intro = max(0.0, 1.0 - dist_end / max(100.0, l_intro_mm))
+        v_intro_kn_m = abs(n_steel) * (1.0 - steel_pct / 100.0) / max(0.25, l_intro_mm / 1000.0) * phi_intro
+
+    v_interface_kn_m = v_flex_kn_m + v_intro_kn_m
+    tau_bond_mpa = v_interface_kn_m / max(100.0, u_bond_mm)  # (kN/m) / mm = N/mm / mm = MPa!
+    tau_rd_eff = tau_rd0 + 0.25 * conf.fl_p_mpa  # Tăng cường ma sát nhờ áp lực cốt đai
+
+    # 3. Lực cắt tác dụng lên đinh chống cắt (dầm) & Trượt tương đối vi mô s_slip (mm)
+    det = analysis.get("design_checks", {}).get("detailing", {})
+    stud_p_rd = float(det.get("stud_p_rd_kn", 70.0))
+    v_split_kn = float(det.get("v_split_kn", 1e6))
+    stud_spacing_mm = float(getattr(cfg, "stud_spacing_mm", 200.0))
+    stud_rows = int(getattr(cfg, "stud_rows", 2))
+    stud_force_kn = v_interface_kn_m * (stud_spacing_mm / 1000.0) / max(1, stud_rows) if is_beam else 0.0
+    stud_ur = stud_force_kn / max(1.0, stud_p_rd) if is_beam else 0.0
+    split_ur = abs(v_shear_n / 1000.0) / max(1.0, v_split_kn) if is_beam else 0.0
+
+    k_bond = 12.0  # MPa/mm độ cứng dính bám ban đầu
+    if is_beam:
+        k_stud = max(40.0, 0.7 * stud_p_rd / 0.5)
+        slip_mm = (tau_bond_mpa / k_bond) if tau_bond_mpa <= tau_rd0 else (0.025 + max(0.0, stud_force_kn - 0.25 * stud_p_rd) / k_stud)
+        if stud_ur > 1.0 or split_ur > 1.0:
+            bond_state = "Cảnh báo trượt / Tách dọc cánh thép"
+        elif tau_bond_mpa > tau_rd0 or stud_ur > 0.45:
+            bond_state = "Đinh neo & Ma sát đang chịu trượt tích cực"
+        else:
+            bond_state = "Liên kết hoàn toàn — Dính bám đàn hồi"
+    else:
+        slip_mm = (tau_bond_mpa / k_bond) if tau_bond_mpa <= tau_rd_eff else (0.025 + (tau_bond_mpa - tau_rd_eff) / 2.5)
+        if tau_bond_mpa > tau_rd_eff:
+            bond_state = "Vượt dính bám tự nhiên — Cần tăng đinh neo / đai dày"
+        elif tau_bond_mpa > 0.55 * tau_rd_eff or conf.fl_h_mpa > 1.0:
+            bond_state = "Ma sát & Giam giữ vòm lõi thép H tích cực"
+        else:
+            bond_state = "Liên kết hoàn toàn — Biến dạng tương thích"
+
     return {
         "x_norm": x_norm,
-        "x_mm": x_norm * float(analysis["x_nodes_mm"][-1]),
+        "x_mm": x_mm,
         "eps0": eps0,
         "kappa_z": kz,
         "kappa_y": ky,
@@ -236,6 +341,29 @@ def dissect_section_2d(analysis: Dict[str, object], x_norm: float = 0.5) -> Dict
         "eps_min": eps_min,
         "eps_max": eps_max,
         "fibers": fiber_states,
+        "interface_behavior": {
+            "n_steel_kn": n_steel,
+            "n_concrete_kn": n_conc,
+            "n_rebar_kn": n_rebar,
+            "mz_steel_knm": mz_steel,
+            "mz_concrete_knm": mz_conc,
+            "mz_rebar_knm": mz_rebar,
+            "steel_share_pct": steel_pct,
+            "concrete_share_pct": conc_pct,
+            "rebar_share_pct": rebar_pct,
+            "bond_perimeter_mm": u_bond_mm,
+            "v_interface_kn_per_m": v_interface_kn_m,
+            "tau_bond_mpa": tau_bond_mpa,
+            "tau_rd_mpa": tau_rd_eff,
+            "stud_force_kn": stud_force_kn,
+            "stud_p_rd_kn": stud_p_rd,
+            "stud_ur": stud_ur,
+            "split_ur": split_ur,
+            "slip_mm": slip_mm,
+            "conf_fl_p_mpa": conf.fl_p_mpa,
+            "conf_fl_h_mpa": conf.fl_h_mpa,
+            "bond_state": bond_state,
+        },
     }
 
 

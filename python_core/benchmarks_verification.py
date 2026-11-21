@@ -312,6 +312,25 @@ def _generate_national_research_figures(fig_dir, res_beam, res_col, res_col_conc
             pc_r.set_array(np.array([f["sigma_mpa"] for f in rebar_f]))
             ax.add_collection(pc_r)
 
+        # Vẽ lớp liên kết Cốt cứng ↔ BTCT: khung cốt đai, vòm giam giữ parabol & đinh neo chống cắt
+        gg = res_obj["config"].geometry
+        cov = gg.cover_mm
+        ax.add_patch(Rectangle((-0.5 * gg.b_mm + cov, -0.5 * gg.h_mm + cov), gg.b_mm - 2 * cov, gg.h_mm - 2 * cov,
+                               fill=False, edgecolor="#10B981", linewidth=1.2, linestyle="--", zorder=6))
+        y_top_in = gg.core_offset_y_mm + 0.5 * gg.ha_mm - gg.tf_mm
+        y_bot_in = gg.core_offset_y_mm - 0.5 * gg.ha_mm + gg.tf_mm
+        ys_arch = np.linspace(y_bot_in, y_top_in, 24)
+        u_par = ((ys_arch - gg.core_offset_y_mm) / max(1.0, 0.5 * (y_top_in - y_bot_in))) ** 2
+        bow = min(0.28 * (y_top_in - y_bot_in), 0.35 * (gg.ba_mm - gg.tw_mm))
+        ax.plot(0.5 * gg.ba_mm - bow * (1.0 - u_par), ys_arch, color="#FDE047", lw=1.25, zorder=6)
+        ax.plot(-0.5 * gg.ba_mm + bow * (1.0 - u_par), ys_arch, color="#FDE047", lw=1.25, zorder=6)
+        if res_obj.get("member_kind") == "beam":
+            y_fl_top = gg.core_offset_y_mm + 0.5 * gg.ha_mm
+            st_h = min(90.0, getattr(res_obj["config"], "stud_height_mm", 80.0))
+            for zo in (-0.22 * gg.ba_mm, 0.22 * gg.ba_mm):
+                ax.plot([zo, zo], [y_fl_top, y_fl_top + st_h], color="#F59E0B", lw=2.0, zorder=7)
+                ax.plot([zo - 12, zo + 12], [y_fl_top + st_h, y_fl_top + st_h], color="#F59E0B", lw=2.6, zorder=7)
+
         ax.autoscale_view()
         plt.colorbar(pc_c, ax=ax, pad=0.03, fraction=0.046, label="σ_x (MPa)")
         ax.set_aspect("equal", adjustable="box")

@@ -18,6 +18,14 @@ void main() {
 
       final dis = SrcNonlinearEngine.dissectSection(res, 0.5);
       expect((dis.mzKnm - res.demandPrimary).abs() / res.demandPrimary, lessThan(0.05));
+      expect((dis.steelSharePct + dis.concreteSharePct + dis.rebarSharePct - 100.0).abs(), lessThan(0.2));
+      expect(dis.bondPerimeterMm, greaterThan(500.0));
+      // Kiểm tra vị trí gần gối x/L = 0.10 nơi lực trượt mặt tiếp xúc & đinh neo lớn nhất
+      final disEnd = SrcNonlinearEngine.dissectSection(res, 0.10);
+      expect(disEnd.vInterfaceKnPerM, greaterThan(10.0));
+      expect(disEnd.tauBondMpa, greaterThan(0.01));
+      expect(disEnd.studForceKn, greaterThan(1.0));
+      expect(disEnd.slipMm, greaterThanOrEqualTo(0.0));
       final p = SrcNonlinearEngine.probePoint(res, 0.5, -200.0, 0.0);
       expect(p.sigmaXMpa.isFinite, isTrue);
     });
@@ -73,11 +81,37 @@ void main() {
       await tester.pumpWidget(const SrcCesStudioApp());
       await tester.pumpAndSettle();
       expect(find.text('SRC–CES Nonlinear Studio'), findsOneWidget);
+      expect(find.text('Mô phỏng 3D'), findsOneWidget);
+      expect(find.textContaining('Trường Đại học Bách Khoa'), findsOneWidget);
+      expect(find.text('Tác giả'), findsOneWidget);
+
+      // Mở hộp thoại Thông tin Tác giả kiểm tra đủ Email & Phone
+      await tester.tap(find.text('Tác giả'));
+      await tester.pumpAndSettle();
+      expect(find.text('Email: vothanhvang@gmail.com'), findsWidgets);
+      expect(find.text('Phone: 0973.993.494'), findsWidgets);
+      await tester.tap(find.text('Đóng'));
+      await tester.pumpAndSettle();
+
+      // Kiểm tra tab 2D & Phẫu thuật (liên kết Cốt cứng - BTCT) không tràn khung
+      await tester.tap(find.text('2D & Phẫu thuật'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('ỨNG XỬ LIÊN KẾT CỐT CỨNG'), findsOneWidget);
+
+      // Kiểm tra tab Lý thuyết & Code (các công thức đầy đủ dấu căn thức)
+      await tester.tap(find.text('Lý thuyết & Code'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('THÔNG TIN TÁC GIẢ'), findsWidgets);
 
       // Phone size (Xiaomi 13T Pro logical viewport ~412x915)
       tester.view.physicalSize = const Size(412, 915);
       await tester.pumpAndSettle();
       expect(find.byIcon(Icons.tune), findsOneWidget);
+      await tester.ensureVisible(find.text('2D & Phẫu thuật'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('2D & Phẫu thuật'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('ỨNG XỬ LIÊN KẾT CỐT CỨNG'), findsOneWidget);
     });
   });
 }

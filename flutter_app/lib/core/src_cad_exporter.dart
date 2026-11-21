@@ -437,6 +437,11 @@ class SrcCadExporter {
                                 style: pw.TextStyle(font: fontReg, fontSize: 8),
                               ),
                               pw.Text(
+                                tr(lang, 'ĐH Bách Khoa - ĐHQG TP.HCM | GVHD: PGS.TS Ngô Cường | HVTH: Võ Thanh Vang (2670624)',
+                                    'HCMUT - VNU-HCM | Advisor: Assoc. Prof. Dr. Ngo Cuong | Vo Thanh Vang (2670624)'),
+                                style: pw.TextStyle(font: fontBold, fontSize: 7.0, color: PdfColor.fromHex('#1E3A8A')),
+                              ),
+                              pw.Text(
                                 'EC4 (EN 1994-1-1) • ANSI/AISC 360-22 • JGJ 138 • TCVN 5574/5575',
                                 style: pw.TextStyle(font: fontBold, fontSize: 7.5, color: PdfColor.fromHex('#0F766E')),
                               ),

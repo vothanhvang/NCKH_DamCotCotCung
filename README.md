@@ -1,8 +1,10 @@
-# SRC–CES Nonlinear Studio — Phân tích Phi tuyến, Thiết kế Đa Tiêu Chuẩn & Mô phỏng 2D/3D ANSYS Dầm & Cột Bê Tông Cốt Cứng
+# SRC–CES Nonlinear Studio — Phân tích Phi tuyến, Thiết kế Đa Tiêu Chuẩn & Mô phỏng 2D/3D Dầm & Cột Bê Tông Cốt Cứng
 
-> **Đề tài Nghiên cứu Khoa học Cấp Quốc gia**  
-> **Lĩnh vực:** Phân tích Phi tuyến Kết cấu & Kết cấu Liên hợp Thép – Bê tông (Concrete-Encased Steel / Steel-Reinforced Concrete — SRC / CES)  
-> **Tác giả:** Võ Thanh Vang (`vothanhvang@gmail.com`)
+> **Trường Đại học Bách Khoa – Đại học Quốc Gia TP. Hồ Chí Minh**  
+> **Giảng viên hướng dẫn:** PGS.TS Ngô Cường  
+> **Học viên thực hiện:** Võ Thanh Vang (`2670624`)  
+> **Email:** `vothanhvang@gmail.com` • **Phone:** `0973.993.494`  
+> **Đề tài:** Nghiên cứu Khoa học Cấp Quốc gia — Phân tích Phi tuyến & Thiết kế Kết cấu Bê tông Cốt cứng (Concrete-Encased Steel / Steel-Reinforced Concrete — SRC / CES)
 
 [![Chạy trực tiếp 2D/3D trên GitHub Pages](https://img.shields.io/badge/▶%20CHẠY%20TRỰC%20TIẾP%202D%2F3D-GitHub%20Pages-06B6D4?style=for-the-badge)](https://vothanhvang.github.io/NCKH_DamCotCotCung/)
 [![Tải Windows x64 EXE](https://img.shields.io/badge/Windows%2010%2F11-.exe%20Độc%20lập%20Portable-2563EB?style=for-the-badge)](releases/SRC_CES_NonlinearStudio_Windows_x64.exe)

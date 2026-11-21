@@ -157,6 +157,11 @@ class SrcReportExporter {
             'NONLINEAR ANALYSIS & MULTI-CODE DESIGN REPORT — SRC COMPOSITE BEAM')
         : tr(lang, 'THUYẾT MINH TÍNH TOÁN & THIẾT KẾ PHI TUYẾN CỘT BÊ TÔNG CỐT CỨNG (SRC/CES)',
             'NONLINEAR ANALYSIS & MULTI-CODE DESIGN REPORT — SRC COMPOSITE COLUMN');
+    final instLine = tr(
+      lang,
+      'Trường Đại học Bách Khoa - Đại học Quốc Gia TP. Hồ Chí Minh - Giảng viên hướng dẫn: PGS.TS Ngô Cường - Học viên thực hiện: Võ Thanh Vang (2670624) - Email: vothanhvang@gmail.com - Phone: 0973.993.494',
+      'Ho Chi Minh City University of Technology (VNU-HCM) - Advisor: Assoc. Prof. Dr. Ngo Cuong - Student: Vo Thanh Vang (2670624) - Email: vothanhvang@gmail.com - Phone: 0973.993.494',
+    );
     final sub = tr(
       lang,
       'Đề tài Nghiên cứu Khoa học Cấp Quốc gia — Đối chiếu Eurocode 4, ANSI/AISC 360-22, JGJ 138-2016, TCVN/SP 266 & SMARTCOCO',
@@ -164,6 +169,7 @@ class SrcReportExporter {
     );
 
     final body = StringBuffer()
+      ..write(_wPara(instLine, bold: true, sz: 19, color: '1E3A8A', align: 'center', before: 0, after: 60))
       ..write(_wPara(title, bold: true, sz: 28, color: '0F3D6E', align: 'center', before: 40, after: 40))
       ..write(_wPara(sub, italic: true, sz: 20, color: '475569', align: 'center', before: 0, after: 140))
       ..write(_wPara(tr(lang, '1. THÔNG SỐ HÌNH HỌC, VẬT LIỆU & TẢI TRỌNG', '1. GEOMETRY, MATERIAL & LOADING PARAMETERS'),
@@ -274,6 +280,18 @@ class SrcReportExporter {
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(34),
         build: (ctx) => [
+          pw.Center(
+            child: pw.Text(
+              tr(
+                lang,
+                'Trường Đại học Bách Khoa - Đại học Quốc Gia TP. Hồ Chí Minh - Giảng viên hướng dẫn: PGS.TS Ngô Cường - Học viên thực hiện: Võ Thanh Vang (2670624) - Email: vothanhvang@gmail.com - Phone: 0973.993.494',
+                'Ho Chi Minh City University of Technology (VNU-HCM) - Advisor: Assoc. Prof. Dr. Ngo Cuong - Student: Vo Thanh Vang (2670624) - Email: vothanhvang@gmail.com - Phone: 0973.993.494',
+              ),
+              textAlign: pw.TextAlign.center,
+              style: pw.TextStyle(font: fontBold, fontSize: 8.2, color: PdfColor.fromHex('#1E3A8A')),
+            ),
+          ),
+          pw.SizedBox(height: 5),
           pw.Center(
             child: pw.Text(
               isBeam

@@ -142,6 +142,15 @@ def _build_report_sections_data(analysis: Dict[str, object], lang: str = "vi") -
         ("NONLINEAR ANALYSIS & MULTI-CODE DESIGN REPORT — SRC COMPOSITE BEAM" if is_beam
          else "NONLINEAR ANALYSIS & MULTI-CODE DESIGN REPORT — SRC COMPOSITE COLUMN")
     )
+    institution_line = (
+        "Trường Đại học Bách Khoa - Đại học Quốc Gia TP. Hồ Chí Minh - "
+        "Giảng viên hướng dẫn: PGS.TS Ngô Cường - "
+        "Học viên thực hiện: Võ Thanh Vang (2670624) - Email: vothanhvang@gmail.com - Phone: 0973.993.494"
+        if vi else
+        "Ho Chi Minh City University of Technology (VNU-HCM) - "
+        "Advisor: Assoc. Prof. Dr. Ngo Cuong - "
+        "Student: Vo Thanh Vang (2670624) - Email: vothanhvang@gmail.com - Phone: 0973.993.494"
+    )
     subtitle = (
         "Báo cáo Nghiên cứu Khoa học Cấp Quốc gia — Đối chiếu Eurocode 4, ANSI/AISC 360-22, JGJ 138-2016, TCVN/SP 266 & SMARTCOCO"
         if vi else
@@ -244,6 +253,7 @@ def _build_report_sections_data(analysis: Dict[str, object], lang: str = "vi") -
     ]
 
     return {
+        "institution": institution_line,
         "title": title,
         "subtitle": subtitle,
         "param_rows": param_rows,
@@ -285,6 +295,15 @@ def _export_docx_generic(analysis: Dict[str, object], out_path: str, lang: str =
         r.bold = True
         r.font.size = Pt(12.5)
         r.font.color.rgb = RGBColor(0x0F, 0x3D, 0x6E)
+
+    # Tiêu đề đơn vị & học thuật
+    p_inst = doc.add_paragraph()
+    p_inst.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p_inst.paragraph_format.space_after = Pt(4)
+    r_inst = p_inst.add_run(data["institution"])
+    r_inst.bold = True
+    r_inst.font.size = Pt(9.5)
+    r_inst.font.color.rgb = RGBColor(0x1E, 0x3A, 0x8A)
 
     # Tiêu đề báo cáo
     p_top = doc.add_paragraph()
@@ -416,6 +435,7 @@ def _export_pdf_generic(analysis: Dict[str, object], out_path: str, lang: str = 
         leftMargin=16 * mm, rightMargin=16 * mm, topMargin=16 * mm, bottomMargin=16 * mm,
     )
 
+    st_inst = ParagraphStyle("InstVN", fontName=font_bold, fontSize=8.4, leading=11.5, alignment=1, textColor=colors.HexColor("#1E3A8A"))
     st_title = ParagraphStyle("TitleVN", fontName=font_bold, fontSize=13.5, leading=18, alignment=1, textColor=colors.HexColor("#0F3D6E"))
     st_sub = ParagraphStyle("SubVN", fontName=font_reg, fontSize=9.2, leading=13, alignment=1, textColor=colors.HexColor("#475569"))
     st_h = ParagraphStyle("HeadVN", fontName=font_bold, fontSize=10.8, leading=15, spaceBefore=9, spaceAfter=4, textColor=colors.HexColor("#0F3D6E"))
@@ -423,6 +443,8 @@ def _export_pdf_generic(analysis: Dict[str, object], out_path: str, lang: str = 
     st_ref = ParagraphStyle("RefVN", fontName=font_reg, fontSize=8.2, leading=11.5, textColor=colors.HexColor("#334155"))
 
     story = [
+        Paragraph(data["institution"], st_inst),
+        Spacer(1, 2.5 * mm),
         Paragraph(data["title"], st_title),
         Spacer(1, 3 * mm),
         Paragraph(data["subtitle"], st_sub),

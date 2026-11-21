@@ -203,6 +203,50 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
             child: Column(
               children: [
                 // ===========================================================
+                // BIỂU NGỮ HỌC THUẬT — TRƯỜNG ĐH BÁCH KHOA - ĐHQG TP.HCM
+                // ===========================================================
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: dark
+                          ? const [Color(0xFF0B1E3D), Color(0xFF0E2954), Color(0xFF0B1E3D)]
+                          : const [Color(0xFF0F3D6E), Color(0xFF1D4ED8), Color(0xFF0F3D6E)],
+                    ),
+                    border: Border(
+                      bottom: BorderSide(
+                        color: const Color(0xFF06B6D4).withValues(alpha: 0.45),
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.school_outlined, size: 15, color: Color(0xFF38BDF8)),
+                      const SizedBox(width: 7),
+                      Flexible(
+                        child: Text(
+                          tr(
+                            l,
+                            'Trường Đại học Bách Khoa - Đại học Quốc Gia TP. Hồ Chí Minh - Giảng viên hướng dẫn: PGS.TS Ngô Cường - Học viên thực hiện: Võ Thanh Vang (2670624) - Email: vothanhvang@gmail.com',
+                            'Ho Chi Minh City University of Technology (VNU-HCM) - Advisor: Assoc. Prof. Dr. Ngo Cuong - Student: Vo Thanh Vang (2670624) - Email: vothanhvang@gmail.com',
+                          ),
+                          textAlign: TextAlign.center,
+                          softWrap: true,
+                          style: const TextStyle(
+                            fontSize: 11.2,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ===========================================================
                 // THANH TIÊU ĐỀ CHÍNH HIỆN ĐẠI (HEADER + MODE + EXPORT + VI/EN)
                 // ===========================================================
                 Container(
@@ -360,6 +404,30 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
                               PopupMenuItem(value: 'open_json', child: Text('📂 ${tr(l, "Mở dự án (.JSON)", "Open Project (.JSON)")}')),
                             ],
                           ),
+                          // Thông tin Tác giả
+                          InkWell(
+                            onTap: () => _showAuthorDialog(dark, fg, barBg, border),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF06B6D4).withValues(alpha: 0.16),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFF06B6D4).withValues(alpha: 0.55)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.person_outline, size: 14, color: Color(0xFF06B6D4)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    tr(l, 'Tác giả', 'Author'),
+                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF06B6D4)),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                           // Chuyển ngôn ngữ VI / EN
                           InkWell(
                             onTap: () => setState(() => _lang = _lang == AppLang.vi ? AppLang.en : AppLang.vi),
@@ -418,7 +486,7 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
                                 indicatorColor: const Color(0xFF06B6D4),
                                 labelStyle: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
                                 tabs: [
-                                  Tab(icon: const Icon(Icons.view_in_ar, size: 16), text: tr(l, 'Mô phỏng 3D ANSYS', '3D ANSYS View')),
+                                  Tab(icon: const Icon(Icons.view_in_ar, size: 16), text: tr(l, 'Mô phỏng 3D', '3D View')),
                                   Tab(icon: const Icon(Icons.biotech, size: 16), text: tr(l, '2D & Phẫu thuật', '2D & Dissection')),
                                   Tab(icon: const Icon(Icons.analytics_outlined, size: 16), text: tr(l, 'Biểu đồ & Tiêu chuẩn', 'Charts & Codes')),
                                   Tab(icon: const Icon(Icons.architecture, size: 16), text: tr(l, 'Bản vẽ CAD', 'CAD Drawing')),
@@ -846,7 +914,132 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
           ],
         ],
         const SizedBox(height: 12),
+        const Divider(height: 1),
+        const SizedBox(height: 10),
+        _secHeader(tr(l, 'THÔNG TIN TÁC GIẢ', 'AUTHOR INFORMATION'), Icons.badge_outlined),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: dark ? const Color(0xFF0F1D36) : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFF06B6D4).withValues(alpha: 0.4)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                tr(l, 'Võ Thanh Vang (MSHV: 2670624)', 'Vo Thanh Vang (ID: 2670624)'),
+                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: fg),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                tr(l, 'GVHD: PGS.TS Ngô Cường', 'Advisor: Assoc. Prof. Dr. Ngo Cuong'),
+                style: TextStyle(fontSize: 10.3, color: fg.withValues(alpha: 0.82)),
+              ),
+              Text(
+                tr(l, 'Trường ĐH Bách Khoa - ĐHQG TP.HCM', 'HCMUT - VNU-HCM'),
+                style: TextStyle(fontSize: 10.3, color: fg.withValues(alpha: 0.82)),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Email: vothanhvang@gmail.com',
+                style: TextStyle(fontSize: 10.4, color: Color(0xFF06B6D4), fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Phone: 0973.993.494',
+                style: TextStyle(fontSize: 10.4, color: fg.withValues(alpha: 0.9), fontFamily: 'DejaVuSansMono'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
       ],
+    );
+  }
+
+  void _showAuthorDialog(bool dark, Color fg, Color cardBg, Color border) {
+    final l = _lang;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: cardBg,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(color: border),
+        ),
+        title: Row(
+          children: [
+            const Icon(Icons.school, color: Color(0xFF06B6D4), size: 22),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                tr(l, 'Thông tin Tác giả', 'Author Information'),
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: fg),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              tr(l, 'Trường Đại học Bách Khoa - Đại học Quốc Gia TP. Hồ Chí Minh',
+                  'Ho Chi Minh City University of Technology (VNU-HCM)'),
+              style: const TextStyle(fontSize: 12.2, fontWeight: FontWeight.bold, color: Color(0xFF38BDF8)),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              tr(l, 'Giảng viên hướng dẫn: PGS.TS Ngô Cường', 'Advisor: Assoc. Prof. Dr. Ngo Cuong'),
+              style: TextStyle(fontSize: 12, color: fg),
+            ),
+            const Divider(height: 18),
+            Text(
+              tr(l, 'Tác giả / Học viên thực hiện:', 'Author / Researcher:'),
+              style: TextStyle(fontSize: 11, color: fg.withValues(alpha: 0.7)),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Võ Thanh Vang (2670624)',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: fg),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.email_outlined, size: 16, color: Color(0xFF06B6D4)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: SelectableText(
+                    'Email: vothanhvang@gmail.com',
+                    style: TextStyle(fontSize: 12.2, color: fg),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+            Row(
+              children: [
+                const Icon(Icons.phone_outlined, size: 16, color: Color(0xFF10B981)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: SelectableText(
+                    'Phone: 0973.993.494',
+                    style: TextStyle(fontSize: 12.2, color: fg, fontFamily: 'DejaVuSansMono'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(tr(l, 'Đóng', 'Close'), style: const TextStyle(color: Color(0xFF06B6D4), fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
     );
   }
 
