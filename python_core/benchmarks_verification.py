@@ -375,6 +375,72 @@ def _generate_national_research_figures(fig_dir, res_beam, res_col, res_col_conc
     fig.savefig(os.path.join(fig_dir, "fig04_experimental_validation.png"), dpi=300)
     plt.close(fig)
 
+    # Hình 5: Cơ chế Tương tác Cốt cứng (Thép hình H) ↔ Bê tông xung quanh (3 bảng biểu chuyên sâu)
+    fig, axes = plt.subplots(1, 3, figsize=(15.2, 4.4), dpi=300)
+    # (a) Phân bố dòng trượt tiếp xúc v_L(x) & ứng suất dính bám τ_b(x) dọc nhịp Dầm SRC
+    x_grid = np.linspace(0.05, 0.95, 37)
+    v_int_b = []
+    tau_b_b = []
+    stud_f_b = []
+    for xn in x_grid:
+        d_b = dissect_section_2d(res_beam, float(xn))
+        ib = d_b["interface_behavior"]
+        v_int_b.append(ib["v_interface_kn_per_m"])
+        tau_b_b.append(ib["tau_bond_mpa"])
+        stud_f_b.append(ib["stud_force_kn"])
+    l1, = axes[0].plot(x_grid, v_int_b, "-o", ms=3, lw=2.0, color="#0F3D6E", label="Dòng trượt tiếp xúc v_L (kN/m)")
+    ax0_r = axes[0].twinx()
+    l2, = ax0_r.plot(x_grid, tau_b_b, "--", lw=1.8, color="#DC2626", label="Ứng suất dính bám τ_b (MPa)")
+    l3 = ax0_r.axhline(0.30, color="#F59E0B", ls=":", lw=1.5, label="τ_Rd,0 = 0.30 MPa (EC4 §6.7.4)")
+    axes[0].set_ylim(0, max(v_int_b) * 1.38)
+    ax0_r.set_ylim(0, 0.39)
+    axes[0].set_xlabel("Tọa độ dọc nhịp x / L", fontweight="bold")
+    axes[0].set_ylabel("Dòng trượt v_L (kN/m)", fontweight="bold", color="#0F3D6E")
+    ax0_r.set_ylabel("Ứng suất dính bám τ_b (MPa)", fontweight="bold", color="#DC2626")
+    axes[0].set_title("(a) Dòng trượt v_L(x) & Dính bám τ_b(x) Dầm SRC", fontweight="bold", color="#0F3D6E", fontsize=9.8)
+    axes[0].grid(True, ls=":", alpha=0.6)
+    axes[0].legend(handles=[l1, l2, l3], loc="upper center", fontsize=7.4, framealpha=0.95)
+
+    # (b) Quan hệ Dính bám – Trượt τ_b(s) & Đinh chống cắt Ollgaard
+    s_arr = np.linspace(0.0, 1.5, 120)
+    tau_nat = np.where(s_arr <= 0.03, 0.30 * (s_arr / 0.03), 0.30 * (0.45 + 0.55 * np.exp(-4.5 * (s_arr - 0.03))))
+    tau_stud = 0.12 * np.minimum(1.0, s_arr / 0.025) + 0.72 * np.power(1.0 - np.exp(-3.2 * s_arr), 0.42)
+    axes[1].plot(s_arr, tau_nat, "--", lw=1.8, color="#64748B", label="Dính bám thuần (Không đinh neo)")
+    axes[1].plot(s_arr, tau_stud, "-", lw=2.3, color="#D97706", label="Liên hợp có Đinh neo & Ma sát (Ollgaard)")
+    axes[1].axhline(0.30, color="#06B6D4", ls=":", lw=1.3, label="Ngưỡng dính bám EC4 τ_Rd = 0.30 MPa")
+    axes[1].set_xlabel("Độ trượt tương đối mặt tiếp xúc s (mm)", fontweight="bold")
+    axes[1].set_ylabel("Ứng suất tiếp tương đương τ (MPa)", fontweight="bold")
+    axes[1].set_title("(b) Luật Dính bám – Trượt & Hiệu quả Đinh neo", fontweight="bold", color="#0F3D6E", fontsize=9.8)
+    axes[1].grid(True, ls=":", alpha=0.6)
+    axes[1].legend(fontsize=7.8)
+
+    # (c) Tỷ lệ chia tải Thép hình H ↔ Bê tông ↔ Cốt thép tại mặt cắt giữa Dầm & Cột
+    ib_beam = dissect_section_2d(res_beam, 0.5)["interface_behavior"]
+    ib_col = dissect_section_2d(res_col, 0.5)["interface_behavior"]
+    cats = ["Dầm SRC chữ T\n(Chịu uốn M_z)", "Cột SRC 500×500\n(Chịu nén N + M)"]
+    st_pcts = [ib_beam["steel_share_pct"], ib_col["steel_share_pct"]]
+    co_pcts = [ib_beam["concrete_share_pct"], ib_col["concrete_share_pct"]]
+    rb_pcts = [ib_beam["rebar_share_pct"], ib_col["rebar_share_pct"]]
+    x_c = np.arange(2)
+    axes[2].bar(x_c, st_pcts, 0.48, color="#DC2626", label="Lõi Thép hình H (%)")
+    axes[2].bar(x_c, co_pcts, 0.48, bottom=st_pcts, color="#0284C7", label="Bê tông 3 vùng (%)")
+    axes[2].bar(x_c, rb_pcts, 0.48, bottom=np.array(st_pcts) + np.array(co_pcts), color="#10B981", label="Cốt thép dọc (%)")
+    for idx in range(2):
+        axes[2].text(x_c[idx], st_pcts[idx] * 0.5, f"{st_pcts[idx]:.1f}%", ha="center", va="center", color="white", fontweight="bold", fontsize=8.8)
+        axes[2].text(x_c[idx], st_pcts[idx] + co_pcts[idx] * 0.5, f"{co_pcts[idx]:.1f}%", ha="center", va="center", color="white", fontweight="bold", fontsize=8.8)
+        axes[2].text(x_c[idx], st_pcts[idx] + co_pcts[idx] + rb_pcts[idx] * 0.5, f"{rb_pcts[idx]:.1f}%", ha="center", va="center", color="white", fontweight="bold", fontsize=8.4)
+    axes[2].set_ylim(0, 126)
+    axes[2].set_xticks(x_c)
+    axes[2].set_xticklabels(cats, fontsize=9, fontweight="bold")
+    axes[2].set_ylabel("Tỷ lệ phân chia nội lực (%)", fontweight="bold")
+    axes[2].set_title("(c) Chia tải Lõi Thép H ↔ Bê tông ↔ Cốt thép", fontweight="bold", color="#0F3D6E", fontsize=9.8)
+    axes[2].grid(True, axis="y", ls=":", alpha=0.5)
+    axes[2].legend(fontsize=7.4, loc="upper center", ncol=2, framealpha=0.95)
+
+    plt.tight_layout()
+    fig.savefig(os.path.join(fig_dir, "fig05_steel_concrete_interface_interaction.png"), dpi=300)
+    plt.close(fig)
+
 
 if __name__ == "__main__":
     summary = run_all_verifications()

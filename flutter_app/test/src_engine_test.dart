@@ -26,6 +26,11 @@ void main() {
       expect(disEnd.tauBondMpa, greaterThan(0.01));
       expect(disEnd.studForceKn, greaterThan(1.0));
       expect(disEnd.slipMm, greaterThanOrEqualTo(0.0));
+      // Kiểm tra mô phỏng động theo mức tải 0% -> 100% cực hạn & chuyển dịch chia tải
+      final disUlt = SrcNonlinearEngine.dissectSectionAtUltimateFrac(res, 0.15, 0.98);
+      expect(disUlt.epsMin, lessThan(disEnd.epsMin));
+      final curve = SrcNonlinearEngine.computeLoadRedistributionCurve(res, 0.5);
+      expect(curve.length, 14);
       final p = SrcNonlinearEngine.probePoint(res, 0.5, -200.0, 0.0);
       expect(p.sigmaXMpa.isFinite, isTrue);
     });
@@ -93,10 +98,20 @@ void main() {
       await tester.tap(find.text('Đóng'));
       await tester.pumpAndSettle();
 
-      // Kiểm tra tab 2D & Phẫu thuật (liên kết Cốt cứng - BTCT) không tràn khung
+      // Kiểm tra tab 2D & Phẫu thuật — Chế độ 0 (Phòng thí nghiệm Tương tác Thép hình ↔ Bê tông) & Chế độ 1
       await tester.tap(find.text('2D & Phẫu thuật'));
       await tester.pumpAndSettle();
+      expect(find.textContaining('GĐ1 (15%)'), findsOneWidget);
+      expect(find.textContaining('PHÍA LÕI THÉP HÌNH'), findsOneWidget);
+      await tester.tap(find.text('GĐ4 (98%)'));
+      await tester.pumpAndSettle();
+      // Chuyển sang Chế độ 1 (Toàn cấu kiện 2D & Phẫu thuật Khảo sát Tự do)
+      await tester.tap(find.textContaining('Toàn cấu kiện 2D'));
+      await tester.pumpAndSettle();
       expect(find.textContaining('ỨNG XỬ LIÊN KẾT CỐT CỨNG'), findsOneWidget);
+      // Quay lại Chế độ 0 để kiểm tra trên điện thoại 412px
+      await tester.tap(find.textContaining('Mô phỏng Chi tiết Tương tác'));
+      await tester.pumpAndSettle();
 
       // Kiểm tra tab Lý thuyết & Code (các công thức đầy đủ dấu căn thức)
       await tester.tap(find.text('Lý thuyết & Code'));
@@ -111,7 +126,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('2D & Phẫu thuật'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('ỨNG XỬ LIÊN KẾT CỐT CỨNG'), findsOneWidget);
+      expect(find.textContaining('PHÍA LÕI THÉP HÌNH'), findsOneWidget);
     });
   });
 }

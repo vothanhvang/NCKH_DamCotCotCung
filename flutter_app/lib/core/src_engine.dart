@@ -808,6 +808,26 @@ class DissectionResult {
   });
 }
 
+/// Một điểm trên đường cong chuyển dịch phân chia nội lực & trượt tiếp xúc theo mức tải (0% → 100% cực hạn)
+class LoadRedistPoint {
+  final double ultFrac; // Tỷ số mức tải hiện tại / cực hạn [0..1]
+  final double loadKn;
+  final double steelPct, concretePct, rebarPct;
+  final double tauBondMpa, slipMm, studForceKn;
+  final double epsConcMin; // Biến dạng nén lớn nhất bê tông (âm)
+  const LoadRedistPoint({
+    required this.ultFrac,
+    required this.loadKn,
+    required this.steelPct,
+    required this.concretePct,
+    required this.rebarPct,
+    required this.tauBondMpa,
+    required this.slipMm,
+    required this.studForceKn,
+    required this.epsConcMin,
+  });
+}
+
 class BomItem {
   final String mark, descVi, descEn, grade, qtyVi, qtyEn;
   final double weightKg;
@@ -3307,6 +3327,92 @@ class SrcNonlinearEngine {
 
   static DissectionResult dissectSection(SrcAnalysisResult res, double xNorm) {
     final kin = _interpKinematics(res, xNorm);
+    return _dissectFromKinematics(res, xNorm, kin.eps0, kin.kz, kin.vShearN);
+  }
+
+  /// Phẫu thuật mặt cắt phi tuyến tại mức tải bất kỳ `ultFrac ∈ [0.04, 1.0]` của tải cực hạn!
+  /// Nội suy trực tiếp từ lịch sử hội tụ phi tuyến `res.history` để thấy rõ 4 giai đoạn:
+  ///   GĐ1 Dính bám đàn hồi → GĐ2 Nứt kéo & Kích hoạt đinh neo → GĐ3 Chảy dẻo & Kiềm chế mạnh → GĐ4 Bong vỡ vỏ & Cực hạn!
+  static DissectionResult dissectSectionAtUltimateFrac(SrcAnalysisResult res, double xNorm, double ultFrac) {
+    final kin = _interpKinematics(res, xNorm);
+    final uf = ultFrac.clamp(0.03, 1.0);
+    final isBeam = res.config.kind == MemberKind.beam;
+    final hist = res.history;
+    double epsScale = uf;
+    double kzScale = uf;
+    double vScale = uf;
+
+    if (hist.length >= 2) {
+      final fIdx = uf * (hist.length - 1);
+      final i0 = fIdx.floor().clamp(0, hist.length - 2);
+      final t = fIdx - i0;
+      final h0 = hist[i0], h1 = hist[i0 + 1];
+      final stepLoad = h0.loadKn * (1 - t) + h1.loadKn * t;
+      final stepDefl = h0.deflMm * (1 - t) + h1.deflMm * t;
+      final stepShort = h0.axialShortMm * (1 - t) + h1.axialShortMm * t;
+      final stepV = h0.vMaxKn * (1 - t) + h1.vMaxKn * t;
+      final stepEpsMin = h0.epsCMin * (1 - t) + h1.epsCMin * t;
+
+      final desDefl = math.max(0.05, res.deflDesignMm.abs());
+      final desShort = math.max(0.02, res.axialShortMm.abs());
+      final desV = math.max(1.0, res.profileVKn.fold<double>(1.0, (a, b) => math.max(a, b.abs())));
+
+      vScale = (stepV.abs() / desV).clamp(0.03, 5.0);
+      if (isBeam) {
+        final dRat = (stepDefl.abs() / desDefl).clamp(0.03, 16.0);
+        // Điều chỉnh nhẹ để biến dạng nén đỉnh phản ánh đúng `stepEpsMin` của bước đẩy phi tuyến
+        final baseMinEps = (kin.eps0 - 0.5 * res.config.geometry.hMm * kin.kz).abs();
+        final eRat = baseMinEps > 1e-6 ? (stepEpsMin.abs() / baseMinEps).clamp(0.03, 16.0) : dRat;
+        final blend = 0.55 * dRat + 0.45 * eRat;
+        epsScale = blend;
+        kzScale = blend;
+      } else {
+        final sRat = (stepShort.abs() / desShort).clamp(0.03, 12.0);
+        final dRat = (stepDefl.abs() / desDefl).clamp(0.03, 12.0);
+        final baseMinEps = (kin.eps0.abs() + 0.5 * res.config.geometry.hMm * kin.kz.abs());
+        final eRat = baseMinEps > 1e-6 ? (stepEpsMin.abs() / baseMinEps).clamp(0.03, 12.0) : sRat;
+        epsScale = 0.50 * sRat + 0.50 * eRat;
+        kzScale = 0.55 * dRat + 0.45 * eRat;
+        if (stepLoad > 0 && res.demandPrimary > 1) {
+          vScale = math.max(vScale, (stepLoad / res.demandPrimary).clamp(0.03, 5.0));
+        }
+      }
+    }
+
+    return _dissectFromKinematics(res, xNorm, kin.eps0 * epsScale, kin.kz * kzScale, kin.vShearN * vScale);
+  }
+
+  /// Dựng đường cong chuyển dịch phân chia nội lực (Thép hình H vs Bê tông vs Cốt thép) theo mức tải 5% → 100% cực hạn
+  static List<LoadRedistPoint> computeLoadRedistributionCurve(SrcAnalysisResult res, double xNorm) {
+    final pts = <LoadRedistPoint>[];
+    final maxLoad = res.ultimateLoadKn;
+    const steps = 14;
+    for (int i = 1; i <= steps; i++) {
+      final uf = i / steps;
+      final d = dissectSectionAtUltimateFrac(res, xNorm, uf);
+      pts.add(LoadRedistPoint(
+        ultFrac: uf,
+        loadKn: maxLoad * uf,
+        steelPct: d.steelSharePct,
+        concretePct: d.concreteSharePct,
+        rebarPct: d.rebarSharePct,
+        tauBondMpa: d.tauBondMpa,
+        slipMm: d.slipMm,
+        studForceKn: d.studForceKn,
+        epsConcMin: d.epsMin,
+      ));
+    }
+    return pts;
+  }
+
+  static DissectionResult _dissectFromKinematics(
+    SrcAnalysisResult res,
+    double xNorm,
+    double eps0In,
+    double kzIn,
+    double vShearNIn,
+  ) {
+    final kin = (eps0: eps0In, kz: kzIn, vShearN: vShearNIn);
     final cfg = res.config;
     final g = cfg.geometry;
     final m = cfg.material;
@@ -3533,7 +3639,10 @@ class SrcNonlinearEngine {
   }
 
   static ProbeResult probePoint(SrcAnalysisResult res, double xNorm, double yMm, double zMm) {
-    final dis = dissectSection(res, xNorm);
+    return probePointOnDissection(res, dissectSection(res, xNorm), yMm, zMm);
+  }
+
+  static ProbeResult probePointOnDissection(SrcAnalysisResult res, DissectionResult dis, double yMm, double zMm) {
     final g = res.config.geometry;
     final m = res.config.material;
     final eps = dis.eps0 - yMm * dis.kappaZ;

@@ -20,6 +20,7 @@ import 'package:flutter/material.dart';
 import '../core/i18n.dart';
 import '../core/src_engine.dart';
 import 'ansys_colorbar.dart';
+import 'src_interface_interaction_lab.dart';
 
 class SrcViewport2DDissection extends StatefulWidget {
   final SrcAnalysisResult result;
@@ -47,12 +48,68 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
   double _probeYMm = 0.0;
   double _probeZMm = 0.0;
   bool _showConnectionOverlay = true;
+  int _subMode = 0; // 0: Phòng thí nghiệm Tương tác Chi tiết Thép hình ↔ Bê tông | 1: Toàn cấu kiện 2D & Phẫu thuật tự do
 
   @override
   Widget build(BuildContext context) {
     final res = widget.result;
     final l = widget.lang;
     final dark = widget.darkMode;
+    final cardBg = dark ? const Color(0xFF0F172A) : Colors.white;
+    final border = dark ? const Color(0xFF263859) : const Color(0xFFCBD5E1);
+    final fg = dark ? const Color(0xFFE2E8F0) : const Color(0xFF0F172A);
+    final sub = dark ? const Color(0xFF94A3B8) : const Color(0xFF475569);
+
+    final modeHeader = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: dark ? const Color(0xFF0B1325) : const Color(0xFFF8FAFC),
+        border: Border(bottom: BorderSide(color: border)),
+      ),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          _subModeBtn(
+            active: _subMode == 0,
+            icon: Icons.science_outlined,
+            label: tr(l, 'Mô phỏng Chi tiết Tương tác Thép hình ↔ Bê tông (4 Giai đoạn)', 'Detailed Steel–Concrete Interaction Lab (4 Stages)'),
+            accent: const Color(0xFFF59E0B),
+            fg: fg,
+            border: border,
+            onTap: () => setState(() => _subMode = 0),
+          ),
+          _subModeBtn(
+            active: _subMode == 1,
+            icon: Icons.biotech,
+            label: tr(l, 'Toàn cấu kiện 2D & Phẫu thuật Khảo sát Tự do', 'Full-Span 2D & Free Surgical Probe'),
+            accent: const Color(0xFF06B6D4),
+            fg: fg,
+            border: border,
+            onTap: () => setState(() => _subMode = 1),
+          ),
+        ],
+      ),
+    );
+
+    if (_subMode == 0) {
+      return Column(
+        children: [
+          modeHeader,
+          Expanded(
+            child: SrcInterfaceInteractionLab(
+              result: res,
+              probeXNorm: widget.probeXNorm,
+              darkMode: dark,
+              lang: l,
+              onProbeXChanged: widget.onProbeXChanged,
+            ),
+          ),
+        ],
+      );
+    }
+
     final g = res.config.geometry;
     final isBeam = res.config.kind == MemberKind.beam;
     final yClamped = _probeYMm.clamp(-0.5 * g.hMm, 0.5 * g.hMm);
@@ -62,17 +119,16 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
     final dis = SrcNonlinearEngine.dissectSection(res, widget.probeXNorm);
     final probe = SrcNonlinearEngine.probePoint(res, widget.probeXNorm, yClamped, zClamped);
 
-    final cardBg = dark ? const Color(0xFF0F172A) : Colors.white;
-    final border = dark ? const Color(0xFF263859) : const Color(0xFFCBD5E1);
-    final fg = dark ? const Color(0xFFE2E8F0) : const Color(0xFF0F172A);
-    final sub = dark ? const Color(0xFF94A3B8) : const Color(0xFF475569);
-
     final bondColor = dis.bondStatusLevel == 2
         ? const Color(0xFFEF4444)
         : (dis.bondStatusLevel == 1 ? const Color(0xFFF59E0B) : const Color(0xFF10B981));
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
+    return Column(
+      children: [
+        modeHeader,
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
         final wide = constraints.maxWidth >= 820;
 
         // =====================================================================
@@ -440,7 +496,51 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
             ],
           ),
         );
-      },
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _subModeBtn({
+    required bool active,
+    required IconData icon,
+    required String label,
+    required Color accent,
+    required Color fg,
+    required Color border,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: active ? accent.withValues(alpha: 0.20) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: active ? accent : border, width: active ? 1.4 : 1.0),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 15, color: active ? accent : fg.withValues(alpha: 0.68)),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 10.8,
+                  fontWeight: FontWeight.bold,
+                  color: active ? accent : fg.withValues(alpha: 0.78),
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

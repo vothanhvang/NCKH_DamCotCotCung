@@ -61,6 +61,7 @@ Chương trình được phát triển với **lõi tính toán phi tuyến Pyth
 ![Biểu đồ tương tác N-M và ổn định bậc hai P-delta cột SRC](results/figures/fig02_column_nm_interaction_and_pdelta.png)
 ![Phẫu thuật mặt cắt ngang và bổ dọc kiểu ANSYS](results/figures/fig03_ansys_surgical_dissection.png)
 ![Đối chiếu kiểm chứng thực nghiệm quốc tế](results/figures/fig04_experimental_validation.png)
+![Cơ chế tương tác liên kết cốt cứng thép hình và bê tông xung quanh](results/figures/fig05_steel_concrete_interface_interaction.png)
 
 ---
 
