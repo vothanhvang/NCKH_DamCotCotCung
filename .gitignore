@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+scripts/_build_single_exe/
+
+# Flutter / Dart build caches (giữ lại releases/ và docs/ cho GitHub Pages)
+flutter_app/.dart_tool/
+flutter_app/build/
+flutter_app/.flutter-plugins*
+flutter_app/.idea/
+flutter_app/android/.gradle/
+flutter_app/android/.kotlin/
+flutter_app/android/local.properties
+flutter_app/windows/flutter/ephemeral/
+
+# OS
+.DS_Store
+Thumbs.db

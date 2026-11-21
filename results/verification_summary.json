@@ -1,0 +1,54 @@
+{
+  "pillars": [
+    {
+      "id": 1,
+      "name": "Elastic Beam Exact",
+      "error": 1.1778479052847906e-13,
+      "pass": true
+    },
+    {
+      "id": 2,
+      "name": "Tangent Matrix 3x3 FD",
+      "error": 3.2526760635828636e-13,
+      "pass": true
+    },
+    {
+      "id": 3,
+      "name": "Dissection Equilibrium",
+      "error": 0.0031213685049752203,
+      "pass": true
+    },
+    {
+      "id": 4,
+      "name": "Beam Experimental Benchmarks",
+      "c100b_fem_knm": 171.37998495003916,
+      "jiang_fem_knm": 1029.598817732349,
+      "pass": true
+    },
+    {
+      "id": 5,
+      "name": "Column Experimental Benchmarks",
+      "c100e0_fem": 6119.999999999999,
+      "c100e50_fem": 3317.9999999999995,
+      "cs1_fem": 1681.6249999999998,
+      "pass": true
+    },
+    {
+      "id": 6,
+      "name": "Column P-Delta Amplification",
+      "amp_fem": 1.1371630728093742,
+      "pass": true
+    },
+    {
+      "id": 7,
+      "name": "Multi-Code Consistency",
+      "pass": true
+    },
+    {
+      "id": 8,
+      "name": "Bilingual Report & CAD Export",
+      "files": 12,
+      "pass": true
+    }
+  ]
+}
