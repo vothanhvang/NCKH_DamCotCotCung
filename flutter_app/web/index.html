@@ -3,9 +3,12 @@
 <head>
   <base href="$FLUTTER_BASE_HREF">
   <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="SRC-CES Nonlinear Studio — Phân tích phi tuyến, thiết kế đa tiêu chuẩn và mô phỏng 2D/3D ANSYS Dầm và Cột Bê Tông Cốt Cứng (NCKH Cấp Quốc Gia)">
+  <meta name="description" content="SRC-CES Nonlinear Studio — Phân tích phi tuyến, thiết kế đa tiêu chuẩn và mô phỏng 2D/3D Dầm và Cột Bê Tông Cốt Cứng (ĐH Bách Khoa - ĐHQG TP.HCM)">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="SRC-CES Nonlinear Studio">
@@ -17,6 +20,19 @@
   </style>
 </head>
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    // Tự động gỡ Service Worker cache cũ của Flutter Web để trình duyệt luôn tải phiên bản mới nhất trên GitHub Pages
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(regs) {
+        regs.forEach(function(r) { r.unregister(); });
+      });
+    }
+    if ('caches' in window) {
+      caches.keys().then(function(names) {
+        names.forEach(function(n) { caches.delete(n); });
+      });
+    }
+  </script>
+  <script src="flutter_bootstrap.js?v=202611222313" async></script>
 </body>
 </html>
