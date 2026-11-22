@@ -953,57 +953,62 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
             ),
           ],
         ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              tr(l, 'Trường Đại học Bách Khoa - Đại học Quốc Gia TP. Hồ Chí Minh',
-                  'Ho Chi Minh City University of Technology (VNU-HCM)'),
-              style: const TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: Color(0xFF38BDF8)),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              tr(l, 'Giảng viên hướng dẫn: PGS.TS Ngô Hữu Cường', 'Advisor: Assoc. Prof. Dr. Ngo Huu Cuong'),
-              style: TextStyle(fontSize: 12.0, color: fg),
-            ),
-            const Divider(height: 18),
-            Text(
-              tr(l, 'Tác giả / Học viên thực hiện:', 'Author / Researcher:'),
-              style: TextStyle(fontSize: 12.0, color: fg.withValues(alpha: 0.7)),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'Võ Thanh Vang (2670624)',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: fg),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.email_outlined, size: 16, color: Color(0xFF06B6D4)),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: SelectableText(
-                    'Email: vothanhvang@gmail.com',
-                    style: TextStyle(fontSize: 12.0, color: fg),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                tr(l, 'Trường Đại học Bách Khoa - Đại học Quốc Gia TP. Hồ Chí Minh',
+                    'Ho Chi Minh City University of Technology (VNU-HCM)'),
+                softWrap: true,
+                style: const TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: Color(0xFF38BDF8)),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                tr(l, 'Giảng viên hướng dẫn: PGS.TS Ngô Hữu Cường', 'Advisor: Assoc. Prof. Dr. Ngo Huu Cuong'),
+                softWrap: true,
+                style: TextStyle(fontSize: 12.0, color: fg),
+              ),
+              const Divider(height: 18),
+              Text(
+                tr(l, 'Tác giả / Học viên thực hiện:', 'Author / Researcher:'),
+                style: TextStyle(fontSize: 12.0, color: fg.withValues(alpha: 0.7)),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Võ Thanh Vang (2670624)',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: fg),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.email_outlined, size: 16, color: Color(0xFF06B6D4)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: SelectableText(
+                      'Email: vothanhvang@gmail.com',
+                      style: TextStyle(fontSize: 12.0, color: fg),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 5),
-            Row(
-              children: [
-                const Icon(Icons.phone_outlined, size: 16, color: Color(0xFF10B981)),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: SelectableText(
-                    'Phone: 0973.993.494',
-                    style: TextStyle(fontSize: 12.0, color: fg, fontFamily: 'DejaVuSansMono'),
+                ],
+              ),
+              const SizedBox(height: 5),
+              Row(
+                children: [
+                  const Icon(Icons.phone_outlined, size: 16, color: Color(0xFF10B981)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: SelectableText(
+                      'Phone: 0973.993.494',
+                      style: TextStyle(fontSize: 12.0, color: fg, fontFamily: 'DejaVuSansMono'),
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(

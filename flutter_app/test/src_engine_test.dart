@@ -93,11 +93,15 @@ void main() {
       expect(find.text('SRC–CES Nonlinear Studio'), findsOneWidget);
       expect(find.text('Mô phỏng 3D'), findsOneWidget);
       expect(find.textContaining('Trường Đại học Bách Khoa'), findsOneWidget);
+      expect(find.textContaining('PGS.TS Ngô Hữu Cường'), findsOneWidget);
+      expect(find.textContaining('PGS.TS Ngô Cường'), findsNothing);
       expect(find.text('Tác giả'), findsOneWidget);
 
-      // Mở hộp thoại Thông tin Tác giả kiểm tra đủ Email & Phone
+      // Mở hộp thoại Thông tin Tác giả kiểm tra đủ GVHD (PGS.TS Ngô Hữu Cường), Email & Phone
       await tester.tap(find.text('Tác giả'));
       await tester.pumpAndSettle();
+      expect(find.text('Giảng viên hướng dẫn: PGS.TS Ngô Hữu Cường'), findsOneWidget);
+      expect(find.textContaining('PGS.TS Ngô Cường'), findsNothing);
       expect(find.text('Email: vothanhvang@gmail.com'), findsWidgets);
       expect(find.text('Phone: 0973.993.494'), findsWidgets);
       await tester.tap(find.text('Đóng'));
