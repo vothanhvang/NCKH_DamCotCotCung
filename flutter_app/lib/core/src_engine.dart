@@ -844,6 +844,79 @@ class FailurePathPoint {
   });
 }
 
+/// Ngưỡng chuyển vùng cơ học thực tế tính từ bộ giải FEM phi tuyến (Đàn hồi → Phi tuyến → Đứt gãy)
+class MechanicalRegimeThresholds {
+  final double elasticLoadKn; // N_el (cột) hoặc P_el (dầm) — ranh giới cuối vùng đàn hồi
+  final double elasticProg; // Tiến trình prog ∈ [0..0.84] tại ranh giới đàn hồi
+  final double yieldLoadKn; // N_y hoặc P_y — thời điểm thép hình / cốt thép bắt đầu chảy dẻo
+  final double yieldProg; // Tiến trình prog tại chảy dẻo thép
+  final double peakLoadKn; // N_u hoặc P_u — tải cực hạn đỉnh (prog = 0.84)
+  final double peakProg;
+  final double fractureLoadKn; // N_f hoặc P_f — tải còn lại khi đứt gãy kết thúc (prog = 1.0)
+  final double fractureStartProg; // 0.86 — bắt đầu nhánh suy giảm dẫn tới đứt gãy
+  final double epsElastic; // Biến dạng nén giới hạn đàn hồi bê tông (0.42 * ε_c0,u)
+  final double epsYieldSteel; // Biến dạng chảy dẻo lõi thép hình (f_y / E_s)
+  final double epsCoverCrush; // Biến dạng vỡ nén vỏ bê tông (ε_cu,u)
+
+  const MechanicalRegimeThresholds({
+    required this.elasticLoadKn,
+    required this.elasticProg,
+    required this.yieldLoadKn,
+    required this.yieldProg,
+    required this.peakLoadKn,
+    required this.peakProg,
+    required this.fractureLoadKn,
+    required this.fractureStartProg,
+    required this.epsElastic,
+    required this.epsYieldSteel,
+    required this.epsCoverCrush,
+  });
+}
+
+/// Trạng thái cơ học tức thời hiển thị trực tiếp lên mô hình phẫu thuật Cột / Dầm
+class MechanicalRegimeState {
+  /// 0 = Trong vùng đàn hồi | 1 = Vượt vùng đàn hồi – Vùng phi tuyến | 2 = Đứt gãy / Phá hoại kết thúc
+  final int regimeCode;
+  final int stage; // 1..5
+  final double loadKn;
+  final String badgeVi;
+  final String badgeEn;
+  final String shortVi;
+  final String shortEn;
+  final String criteriaVi;
+  final String criteriaEn;
+  final String coverStateVi;
+  final String coverStateEn;
+  final String coreStateVi;
+  final String coreStateEn;
+  final String steelStateVi;
+  final String steelStateEn;
+  final String rebarStateVi;
+  final String rebarStateEn;
+  final MechanicalRegimeThresholds thresholds;
+
+  const MechanicalRegimeState({
+    required this.regimeCode,
+    required this.stage,
+    required this.loadKn,
+    required this.badgeVi,
+    required this.badgeEn,
+    required this.shortVi,
+    required this.shortEn,
+    required this.criteriaVi,
+    required this.criteriaEn,
+    required this.coverStateVi,
+    required this.coverStateEn,
+    required this.coreStateVi,
+    required this.coreStateEn,
+    required this.steelStateVi,
+    required this.steelStateEn,
+    required this.rebarStateVi,
+    required this.rebarStateEn,
+    required this.thresholds,
+  });
+}
+
 class BomItem {
   final String mark, descVi, descEn, grade, qtyVi, qtyEn;
   final double weightKg;
@@ -3360,11 +3433,13 @@ class SrcNonlinearEngine {
   /// Tính điểm tải trọng – chuyển vị chính xác trên đường cong 5 giai đoạn (gồm cả nhánh suy giảm sau đỉnh & đứt gãy)
   static FailurePathPoint evaluateFailurePathPoint(SrcAnalysisResult res, double prog) {
     final p = prog.clamp(0.0, 1.0);
+    final isBeam = res.config.kind == MemberKind.beam;
     final hist = res.history;
     final pMax = math.max(1.0, res.ultimateLoadKn);
+    double dispOfRec(LoadStepRecord h) => isBeam ? h.deflMm.abs() : math.max(h.axialShortMm.abs(), h.deflMm.abs());
     final peakDefl = hist.isNotEmpty
-        ? math.max(0.5, hist.last.deflMm.abs())
-        : math.max(1.0, res.deflDesignMm.abs() * 3.0);
+        ? math.max(0.5, dispOfRec(hist.last))
+        : math.max(1.0, (isBeam ? res.deflDesignMm.abs() : math.max(res.axialShortMm.abs(), res.deflDesignMm.abs())) * 3.0);
 
     if (p <= 0.84) {
       // Nhánh đi lên thực tế từ lịch sử hội tụ phi tuyến FEM (0% → Đỉnh cực hạn tại p = 0.84)
@@ -3375,7 +3450,7 @@ class SrcNonlinearEngine {
         final t = fIdx - i0;
         final h0 = hist[i0], h1 = hist[i0 + 1];
         final load = h0.loadKn * (1 - t) + h1.loadKn * t;
-        final disp = (h0.deflMm * (1 - t) + h1.deflMm * t).abs();
+        final disp = dispOfRec(h0) * (1 - t) + dispOfRec(h1) * t;
         return FailurePathPoint(
           progress: p,
           dispMm: disp,
@@ -3406,6 +3481,248 @@ class SrcNonlinearEngine {
         stage: 5,
       );
     }
+  }
+
+  /// Trích xuất chính xác các mốc cơ học (Vùng Đàn hồi → Vượt đàn hồi / Phi tuyến → Cực hạn → Đứt gãy)
+  /// trực tiếp từ lịch sử hội tụ phi tuyến FEM của Cột / Dầm đang phân tích.
+  static MechanicalRegimeThresholds computeRegimeThresholds(SrcAnalysisResult res) {
+    final m = res.config.material;
+    final conf = res.conf;
+    final hist = res.history;
+    final peakLoad = math.max(1.0, res.ultimateLoadKn);
+    final epsEl = 0.42 * math.max(1e-4, conf.epsC0U);
+    final epsYs = m.fySteelMpa / math.max(10000.0, m.esSteelMpa);
+    final epsCu = math.max(epsEl + 5e-4, conf.epsCuU);
+
+    double elProg = 0.24;
+    double elLoad = evaluateFailurePathPoint(res, elProg).loadKn;
+    double yProg = 0.54;
+    double yLoad = evaluateFailurePathPoint(res, yProg).loadKn;
+
+    if (hist.length >= 3) {
+      final nH = hist.length - 1;
+      bool foundEl = false;
+      bool foundY = false;
+      for (int i = 1; i <= nH; i++) {
+        final r = hist[i];
+        final pHere = 0.84 * (i / nH);
+        final pastElastic = r.epsCMin.abs() >= epsEl || r.crackedRatio >= 0.03 || r.steelYielded || r.rebarYielded;
+        if (!foundEl && pastElastic) {
+          // Nội suy mốc ngay trước khi vượt giới hạn đàn hồi
+          final prev = hist[i - 1];
+          final pPrev = 0.84 * ((i - 1) / nH);
+          final frac = (r.epsCMin.abs() > prev.epsCMin.abs() + 1e-7 && r.epsCMin.abs() >= epsEl)
+              ? ((epsEl - prev.epsCMin.abs()) / (r.epsCMin.abs() - prev.epsCMin.abs())).clamp(0.0, 1.0)
+              : 0.5;
+          elProg = (pPrev + (pHere - pPrev) * frac).clamp(0.10, 0.48);
+          elLoad = (prev.loadKn + (r.loadKn - prev.loadKn) * frac).clamp(0.12 * peakLoad, 0.72 * peakLoad);
+          foundEl = true;
+        }
+        if (!foundY && (r.steelYielded || r.rebarYielded || r.sigSteelMaxMpa >= 0.96 * m.fySteelMpa)) {
+          yProg = pHere.clamp(math.min(0.72, elProg + 0.08), 0.76);
+          yLoad = r.loadKn.clamp(elLoad, peakLoad);
+          foundY = true;
+        }
+      }
+      if (!foundEl) {
+        elProg = 0.28;
+        elLoad = evaluateFailurePathPoint(res, elProg).loadKn;
+      }
+      if (!foundY) {
+        yProg = math.max(elProg + 0.14, 0.58).clamp(0.32, 0.76);
+        yLoad = evaluateFailurePathPoint(res, yProg).loadKn;
+      }
+    }
+
+    final fPt = evaluateFailurePathPoint(res, 1.0);
+    return MechanicalRegimeThresholds(
+      elasticLoadKn: elLoad,
+      elasticProg: elProg,
+      yieldLoadKn: yLoad,
+      yieldProg: yProg,
+      peakLoadKn: peakLoad,
+      peakProg: 0.84,
+      fractureLoadKn: fPt.loadKn,
+      fractureStartProg: 0.86,
+      epsElastic: epsEl,
+      epsYieldSteel: epsYs,
+      epsCoverCrush: epsCu,
+    );
+  }
+
+  /// Phân loại trạng thái cơ học thực tế (Đàn hồi / Vượt đàn hồi – Phi tuyến / Đứt gãy)
+  /// để hiển thị nhãn rõ ràng trực tiếp trên mô hình phẫu thuật Cột & Dầm.
+  static MechanicalRegimeState classifySectionRegime(
+    SrcAnalysisResult res,
+    DissectionResult dis, {
+    double? progress,
+  }) {
+    final th = computeRegimeThresholds(res);
+    final isBeam = res.config.kind == MemberKind.beam;
+    final m = res.config.material;
+    final conf = res.conf;
+
+    double maxSteelSig = 0.0, maxRebarSig = 0.0;
+    double maxCoverEpsC = 0.0, maxCoreEpsC = 0.0;
+    bool anyCracked = false, coverCrushed = false, coreCrushed = false;
+    bool steelYielded = false, rebarYielded = false;
+
+    for (final df in dis.fibers) {
+      final f = df.cell;
+      if (f.kind.startsWith('steel')) {
+        if (df.sigmaXMpa.abs() > maxSteelSig) maxSteelSig = df.sigmaXMpa.abs();
+        if (df.epsX.abs() >= th.epsYieldSteel * 0.99 || df.sigmaXMpa.abs() >= m.fySteelMpa * 0.98) {
+          steelYielded = true;
+        }
+      } else if (f.kind == 'rebar') {
+        if (df.sigmaXMpa.abs() > maxRebarSig) maxRebarSig = df.sigmaXMpa.abs();
+        if (df.sigmaXMpa.abs() >= m.fyRebarMpa * 0.98) rebarYielded = true;
+      } else {
+        if (df.stateEn.contains('Cracked')) anyCracked = true;
+        final ec = df.epsX < 0 ? -df.epsX : 0.0;
+        if (f.zone == ConcreteZone.unconfined) {
+          if (ec > maxCoverEpsC) maxCoverEpsC = ec;
+          if (ec >= conf.epsCuU) coverCrushed = true;
+        } else if (f.zone == ConcreteZone.highlyConfined) {
+          if (ec > maxCoreEpsC) maxCoreEpsC = ec;
+          if (ec >= conf.epsCuH * 0.90) coreCrushed = true;
+        }
+      }
+    }
+
+    final loadKn = progress != null
+        ? evaluateFailurePathPoint(res, progress).loadKn
+        : (isBeam ? res.demandPrimary : dis.nKn.abs());
+    final maxEpsC = math.max(maxCoverEpsC, (-dis.epsMin).clamp(0.0, 1.0));
+    final bool isFractureZone = (progress != null && progress >= th.fractureStartProg) ||
+        coreCrushed ||
+        maxEpsC >= conf.epsCuU * 1.55;
+    final bool isFractureEnd = (progress != null && progress >= 0.96) || maxEpsC >= conf.epsCuU * 2.1;
+
+    final bool isBeyondElastic = isFractureZone ||
+        (progress != null && progress >= th.elasticProg) ||
+        maxEpsC >= th.epsElastic ||
+        anyCracked ||
+        steelYielded ||
+        rebarYielded ||
+        coverCrushed;
+
+    final int regimeCode = isFractureZone ? 2 : (isBeyondElastic ? 1 : 0);
+    final int stage = progress != null
+        ? failureStageOf(progress)
+        : (regimeCode == 2
+            ? 5
+            : (regimeCode == 0
+                ? 1
+                : (coverCrushed ? 4 : ((steelYielded || rebarYielded) ? 3 : 2))));
+
+    final String sym = isBeam ? 'P' : 'N';
+    final String elStr = th.elasticLoadKn.toStringAsFixed(0);
+    final String yStr = th.yieldLoadKn.toStringAsFixed(0);
+    final String uStr = th.peakLoadKn.toStringAsFixed(0);
+    final String loadStr = loadKn.toStringAsFixed(0);
+    final String epsStr = (maxEpsC * 1000.0).toStringAsFixed(2);
+    final String epsElStr = (th.epsElastic * 1000.0).toStringAsFixed(2);
+    final String steelUrPct = ((maxSteelSig / math.max(1.0, m.fySteelMpa)) * 100.0).clamp(0, 130).toStringAsFixed(0);
+
+    final String badgeVi, badgeEn, shortVi, shortEn, criteriaVi, criteriaEn;
+    if (regimeCode == 0) {
+      badgeVi = '● TRONG VÙNG ĐÀN HỒI';
+      badgeEn = '● ELASTIC REGION';
+      shortVi = 'VÙNG ĐÀN HỒI';
+      shortEn = 'ELASTIC';
+      criteriaVi = '$sym=$loadStr ≤ ${sym}_el=$elStr kN • |ε_c|=$epsStr‰ < $epsElStr‰ • Thép H ($steelUrPct% f_y) & BT đàn hồi';
+      criteriaEn = '$sym=$loadStr ≤ ${sym}_el=$elStr kN • |ε_c|=$epsStr‰ < $epsElStr‰ • Elastic concrete & steel';
+    } else if (regimeCode == 1) {
+      final bool atPeak = stage == 4 || coverCrushed;
+      badgeVi = atPeak
+          ? '▲ VƯỢT NGOÀI VÙNG ĐÀN HỒI – VÙNG PHI TUYẾN (CỰC HẠN)'
+          : (steelYielded || rebarYielded
+              ? '▲ VƯỢT NGOÀI VÙNG ĐÀN HỒI – VÙNG PHI TUYẾN (CHẢY DẺO)'
+              : '▲ VƯỢT NGOÀI VÙNG ĐÀN HỒI – VÙNG PHI TUYẾN');
+      badgeEn = atPeak
+          ? '▲ BEYOND ELASTIC – NONLINEAR (PEAK ULTIMATE)'
+          : '▲ BEYOND ELASTIC – NONLINEAR REGION';
+      shortVi = 'VƯỢT ĐÀN HỒI – PHI TUYẾN';
+      shortEn = 'NONLINEAR';
+      if (atPeak) {
+        criteriaVi = 'Đạt đỉnh ${sym}_u=$uStr kN • Vỏ BT vỡ nén — Lõi thép H giam giữ K_h=${conf.kh.toStringAsFixed(2)}';
+        criteriaEn = 'Peak ${sym}_u=$uStr kN • Cover spalling — H-Core holds K_h=${conf.kh.toStringAsFixed(2)}';
+      } else if (steelYielded || rebarYielded) {
+        criteriaVi = 'Vượt chảy ${sym}_y=$yStr kN ($sym=$loadStr kN) • Thép H / Cốt thép chảy dẻo (≥ f_y)';
+        criteriaEn = 'Past yield ${sym}_y=$yStr kN ($sym=$loadStr kN) • Steel H / Rebar yielded (≥ f_y)';
+      } else {
+        criteriaVi = isBeam
+            ? 'Vượt ${sym}_el=$elStr kN ($sym=$loadStr kN) • BT kéo nứt, biến dạng phi tuyến'
+            : 'Vượt ${sym}_el=$elStr kN ($sym=$loadStr kN) • BT nén phi tuyến / nứt vi mô (|ε_c|=$epsStr‰)';
+        criteriaEn = 'Past ${sym}_el=$elStr kN ($sym=$loadStr kN) • Nonlinear concrete / micro-cracking';
+      }
+    } else {
+      badgeVi = isFractureEnd ? '✕ ĐỨT GÃY – PHÁ HOẠI KẾT THÚC' : '✕ VÙNG ĐỨT GÃY (SUY GIẢM SAU ĐỈNH)';
+      badgeEn = isFractureEnd ? '✕ FRACTURE TERMINATED' : '✕ FRACTURE / POST-PEAK COLLAPSE';
+      shortVi = 'ĐỨT GÃY / PHÁ HOẠI';
+      shortEn = 'FRACTURE';
+      criteriaVi = isBeam
+          ? 'Sau đỉnh P_u=$uStr kN (P=$loadStr kN) • Đứt cốt thép & cánh thép H, cắt đinh neo'
+          : 'Sau đỉnh N_u=$uStr kN (N=$loadStr kN) • Bong toàn bộ vỏ, oằn cốt thép, bung đai & cắt 45°';
+      criteriaEn = isBeam
+          ? 'Post-peak P_u=$uStr kN • Tension steel & stud rupture, concrete crush'
+          : 'Post-peak N_u=$uStr kN • Cover collapse, rebar buckling, hoop burst & 45° shear';
+    }
+
+    // Trạng thái chi tiết từng bộ phận để chú thích trực tiếp trên mô hình phẫu thuật
+    final String coverVi = isFractureZone
+        ? 'Đứt vỡ hoàn toàn!'
+        : (coverCrushed || stage >= 4
+            ? 'Vỡ nén bong vỏ!'
+            : (regimeCode == 1 ? (anyCracked ? 'Nứt / Phi tuyến' : 'Nén phi tuyến') : 'Đàn hồi'));
+    final String coverEn = isFractureZone
+        ? 'Collapsed!'
+        : (coverCrushed || stage >= 4 ? 'Crushed / Spalling!' : (regimeCode == 1 ? 'Nonlinear' : 'Elastic'));
+
+    final String coreVi = isFractureZone
+        ? (isBeam ? 'Nứt xuyên đứt gãy!' : 'Cắt chéo 45° đứt gãy!')
+        : (stage >= 4
+            ? 'Giam giữ mạnh K_h=${conf.kh.toStringAsFixed(2)}'
+            : (regimeCode == 1 ? 'Phi tuyến • Giam giữ H' : 'Đàn hồi nguyên vẹn'));
+    final String coreEn = isFractureZone
+        ? (isBeam ? 'Through-fracture!' : '45° Shear fracture!')
+        : (stage >= 4 ? 'Strong H-Conf K_h=${conf.kh.toStringAsFixed(2)}' : (regimeCode == 1 ? 'Nonlinear Confined' : 'Elastic Intact'));
+
+    final String steelVi = isFractureZone
+        ? (isBeam ? 'ĐỨT RÁCH CÁNH H!' : 'Mất ổn định / Đứt!')
+        : (steelYielded || stage >= 3 ? 'CHẢY DẺO (≥ f_y)' : 'Đàn hồi ($steelUrPct% f_y)');
+    final String steelEn = isFractureZone
+        ? (isBeam ? 'FLANGE RUPTURE!' : 'Buckling / Failure!')
+        : (steelYielded || stage >= 3 ? 'YIELDED (≥ f_y)' : 'Elastic ($steelUrPct% f_y)');
+
+    final String rebarVi = isFractureZone
+        ? (isBeam ? 'ĐỨT CỐT THÉP KÉO!' : 'Oằn cong & bung đai!')
+        : (rebarYielded || stage >= 3 ? 'CHẢY DẺO (≥ f_ys)' : 'Đàn hồi');
+    final String rebarEn = isFractureZone
+        ? (isBeam ? 'REBAR RUPTURE!' : 'Buckled / Hoop burst!')
+        : (rebarYielded || stage >= 3 ? 'YIELDED (≥ f_ys)' : 'Elastic');
+
+    return MechanicalRegimeState(
+      regimeCode: regimeCode,
+      stage: stage,
+      loadKn: loadKn,
+      badgeVi: badgeVi,
+      badgeEn: badgeEn,
+      shortVi: shortVi,
+      shortEn: shortEn,
+      criteriaVi: criteriaVi,
+      criteriaEn: criteriaEn,
+      coverStateVi: coverVi,
+      coverStateEn: coverEn,
+      coreStateVi: coreVi,
+      coreStateEn: coreEn,
+      steelStateVi: steelVi,
+      steelStateEn: steelEn,
+      rebarStateVi: rebarVi,
+      rebarStateEn: rebarEn,
+      thresholds: th,
+    );
   }
 
   /// Dựng toàn bộ đường cong Phá hoại 5 Giai đoạn (30 điểm từ 0% Đàn hồi → 100% Đứt gãy kết thúc)

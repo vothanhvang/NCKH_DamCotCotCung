@@ -40,13 +40,37 @@ void main() {
       expect(p.sigmaXMpa.isFinite, isTrue);
     });
 
-    test('SRC Columns (Concentric, Uniaxial, Biaxial, CE-CFST) solve cleanly', () {
+    test('SRC Columns (Concentric, Uniaxial, Biaxial, CE-CFST) solve cleanly & classify Elastic/Nonlinear/Fracture regimes', () {
       for (final preset in SrcLibraries.columnPresets()) {
         final res = SrcNonlinearEngine.solve(preset.cfg);
         expect(res.codeChecks.length, 4);
         expect(res.nmDesignCurve.length, greaterThan(10));
         expect(res.ec4Polygon.length, 5);
         expect(res.ultimateLoadKn, greaterThan(1000.0));
+
+        // Kiểm chứng ngưỡng chuyển vùng Đàn hồi → Vượt đàn hồi / Phi tuyến → Đứt gãy cho từng loại Cột
+        final th = SrcNonlinearEngine.computeRegimeThresholds(res);
+        expect(th.elasticLoadKn, greaterThan(0.0));
+        expect(th.elasticLoadKn, lessThan(th.peakLoadKn));
+        expect(th.yieldLoadKn, lessThanOrEqualTo(th.peakLoadKn));
+
+        final pEl = (th.elasticProg * 0.50).clamp(0.05, 0.16);
+        final disEl = SrcNonlinearEngine.dissectSectionAtUltimateFrac(res, 0.5, pEl);
+        final regEl = SrcNonlinearEngine.classifySectionRegime(res, disEl, progress: pEl);
+        expect(regEl.regimeCode, 0);
+        expect(regEl.badgeVi, contains('VÙNG ĐÀN HỒI'));
+
+        final pNl = (th.yieldProg + th.peakProg) * 0.5;
+        final pNlSafe = pNl > 0.80 ? 0.80 : (pNl < th.yieldProg ? th.yieldProg : pNl);
+        final disNl = SrcNonlinearEngine.dissectSectionAtUltimateFrac(res, 0.5, pNlSafe);
+        final regNl = SrcNonlinearEngine.classifySectionRegime(res, disNl, progress: pNlSafe);
+        expect(regNl.regimeCode, 1);
+        expect(regNl.badgeVi, contains('VƯỢT'));
+
+        final disFr = SrcNonlinearEngine.dissectSectionAtUltimateFrac(res, 0.5, 1.0);
+        final regFr = SrcNonlinearEngine.classifySectionRegime(res, disFr, progress: 1.0);
+        expect(regFr.regimeCode, 2);
+        expect(regFr.badgeVi, contains('ĐỨT GÃY'));
       }
     });
 
@@ -118,11 +142,35 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('GĐ5 Đứt gãy'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('ĐỨT GÃY KẾT THÚC'), findsOneWidget);
-      // Chuyển sang Chế độ 1 (Toàn cấu kiện 2D & Phẫu thuật Khảo sát Tự do)
+      expect(find.textContaining('ĐỨT GÃY'), findsWidgets);
+
+      // Chuyển sang CỘT CỐT CỨNG để kiểm tra nhãn Đàn hồi / Vượt đàn hồi – Phi tuyến / Đứt gãy ở cả 2 chế độ Phẫu thuật
+      await tester.tap(find.text('Cột Cốt Cứng'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('GĐ1 Đàn hồi'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('TRONG VÙNG ĐÀN HỒI'), findsWidgets);
+      await tester.tap(find.text('GĐ3 Phi tuyến'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('VƯỢT NGOÀI VÙNG ĐÀN HỒI – VÙNG PHI TUYẾN'), findsWidgets);
+      await tester.tap(find.text('GĐ5 Đứt gãy'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('ĐỨT GÃY – PHÁ HOẠI KẾT THÚC'), findsWidgets);
+
+      // Chuyển sang Chế độ 1 (Toàn cấu kiện 2D & Phẫu thuật Khảo sát Tự do) trên Cột
       await tester.tap(find.textContaining('Toàn cấu kiện 2D'));
       await tester.pumpAndSettle();
       expect(find.textContaining('ỨNG XỬ LIÊN KẾT CỐT CỨNG'), findsOneWidget);
+      await tester.tap(find.text('● Đàn hồi'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('TRONG VÙNG ĐÀN HỒI'), findsWidgets);
+      await tester.tap(find.text('▲ Phi tuyến'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('VƯỢT'), findsWidgets);
+      await tester.tap(find.text('✕ Đứt gãy'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('ĐỨT GÃY'), findsWidgets);
+
       // Quay lại Chế độ 0 để kiểm tra trên điện thoại 412px
       await tester.tap(find.textContaining('Mô phỏng Chi tiết Tương tác'));
       await tester.pumpAndSettle();

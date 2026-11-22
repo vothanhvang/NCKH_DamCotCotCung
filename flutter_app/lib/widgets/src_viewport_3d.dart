@@ -189,22 +189,12 @@ class _SrcViewport3DState extends State<SrcViewport3D> {
           isVerticalColumn: isCol,
         );
         final disAtCut = SrcNonlinearEngine.dissectSectionAtUltimateFrac(res, widget.probeXNorm, widget.loadStepFraction);
-        final fp3d = SrcNonlinearEngine.evaluateFailurePathPoint(res, widget.loadStepFraction);
-        final stage3d = fp3d.stage;
-        final stageCol3d = switch (stage3d) {
-          1 => const Color(0xFF10B981),
-          2 => const Color(0xFF38BDF8),
-          3 => const Color(0xFFF59E0B),
-          4 => const Color(0xFFF97316),
-          _ => const Color(0xFFEF4444),
-        };
-        final stageLbl3d = switch (stage3d) {
-          1 => tr(l, 'GĐ1 Đàn hồi', 'S1 Elastic'),
-          2 => tr(l, 'GĐ2 Nứt BT', 'S2 Cracked'),
-          3 => tr(l, 'GĐ3 Phi tuyến', 'S3 Nonlinear'),
-          4 => tr(l, 'GĐ4 Cực hạn', 'S4 Peak'),
-          _ => widget.loadStepFraction >= 0.985 ? tr(l, '✕ ĐỨT GÃY KẾT THÚC', '✕ FRACTURE') : tr(l, 'GĐ5 Suy giảm', 'S5 Softening'),
-        };
+        final regime3d = SrcNonlinearEngine.classifySectionRegime(res, disAtCut, progress: widget.loadStepFraction);
+        final th3d = regime3d.thresholds;
+        final stageCol3d = regime3d.regimeCode == 0
+            ? const Color(0xFF10B981)
+            : (regime3d.regimeCode == 1 ? const Color(0xFFF59E0B) : const Color(0xFFEF4444));
+        final stageLbl3d = l.isVi ? regime3d.shortVi : regime3d.shortEn;
 
         return Container(
           decoration: BoxDecoration(
@@ -274,6 +264,7 @@ class _SrcViewport3DState extends State<SrcViewport3D> {
                     painter: _Src3DPainter(
                       result: res,
                       disAtCut: disAtCut,
+                      regime: regime3d,
                       cam: cam,
                       field: widget.field,
                       minV: meta.minV,
@@ -487,9 +478,9 @@ class _SrcViewport3DState extends State<SrcViewport3D> {
                             ],
                           ),
                         ),
-                      // Tóm tắt nhanh tại mặt cắt đang phẫu thuật
+                      // Tóm tắt nhanh tại mặt cắt đang phẫu thuật + ngưỡng chuyển vùng cơ học
                       Text(
-                        'M=${disAtCut.mzKnm.toStringAsFixed(1)} kN·m | N=${disAtCut.nKn.toStringAsFixed(0)} kN | x_NA=${disAtCut.xNaMm.toStringAsFixed(0)} mm | σ=[${disAtCut.sigMinMpa.toStringAsFixed(0)}, ${disAtCut.sigMaxMpa.toStringAsFixed(0)}] MPa',
+                        '${isCol ? "N" : "P"}=${regime3d.loadKn.toStringAsFixed(0)} kN (${tr(l, "ĐH≤", "El≤")}${th3d.elasticLoadKn.toStringAsFixed(0)} | ${tr(l, "Đỉnh", "Peak")}=${th3d.peakLoadKn.toStringAsFixed(0)}) | M=${disAtCut.mzKnm.toStringAsFixed(1)} kN·m | x_NA=${disAtCut.xNaMm.toStringAsFixed(0)} mm',
                         style: TextStyle(
                           fontSize: 12.0,
                           fontFamily: 'DejaVuSansMono',
@@ -564,6 +555,7 @@ class _QuadFace {
 class _Src3DPainter extends CustomPainter {
   final SrcAnalysisResult result;
   final DissectionResult disAtCut;
+  final MechanicalRegimeState regime;
   final _Cam3D cam;
   final ContourField field;
   final double minV, maxV;
@@ -574,6 +566,7 @@ class _Src3DPainter extends CustomPainter {
   const _Src3DPainter({
     required this.result,
     required this.disAtCut,
+    required this.regime,
     required this.cam,
     required this.field,
     required this.minV,
@@ -915,6 +908,38 @@ class _Src3DPainter extends CustomPainter {
 
     // 6. Vẽ mũi tên tải trọng 3D (UDL / 3pt / 4pt hoặc Nén lệch tâm cột!)
     _drawLoads3D(canvas, L, g, isCol);
+
+    // 7. Nhãn tên Vùng Cơ Học trực tiếp trên mô hình 3D (Đàn hồi / Vượt đàn hồi – Phi tuyến / Đứt gãy)
+    _drawRegimeBanner3D(canvas, size, L, g, isCol);
+  }
+
+  void _drawRegimeBanner3D(Canvas canvas, Size size, double L, SectionGeometry g, bool isCol) {
+    final Color rBg = regime.regimeCode == 0
+        ? const Color(0xFF047857)
+        : (regime.regimeCode == 1 ? const Color(0xFFB45309) : const Color(0xFFDC2626));
+    final Color rBrd = regime.regimeCode == 0 ? const Color(0xFF34D399) : const Color(0xFFFDE047);
+    final String mainLbl = lang.isVi ? regime.badgeVi : regime.badgeEn;
+    final String subLbl = lang.isVi ? regime.criteriaVi : regime.criteriaEn;
+    final tp = TextPainter(
+      text: TextSpan(
+        children: [
+          TextSpan(text: '$mainLbl\n', style: const TextStyle(color: Colors.white, fontSize: 12.0, fontWeight: FontWeight.w900)),
+          TextSpan(text: subLbl, style: TextStyle(color: rBrd, fontSize: 12.0, fontWeight: FontWeight.w600)),
+        ],
+      ),
+      textAlign: TextAlign.center,
+      textDirection: TextDirection.ltr,
+      maxLines: 2,
+      ellipsis: '…',
+    )..layout(maxWidth: math.min(440.0, math.max(180.0, size.width - 170.0)));
+    final Offset anchor = Offset(size.width * 0.5, math.min(82.0, size.height * 0.16));
+    final r = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: anchor, width: tp.width + 18, height: tp.height + 10),
+      const Radius.circular(8),
+    );
+    canvas.drawRRect(r, Paint()..color = rBg.withValues(alpha: 0.90));
+    canvas.drawRRect(r, Paint()..color = rBrd..style = PaintingStyle.stroke..strokeWidth = 1.5);
+    tp.paint(canvas, anchor - Offset(tp.width * 0.5, tp.height * 0.5));
   }
 
   void _draw3DCracksAndFracture(Canvas canvas, double L, SectionGeometry g, bool isCol) {
@@ -971,22 +996,6 @@ class _Src3DPainter extends CustomPainter {
       for (final dx in [-140.0, -50.0, 50.0, 140.0]) {
         final sh = cam.project(_toWorld(sMid + dx, halfH + 90.0 * tFrac, (dx > 0 ? 1 : -1) * bSide * 0.8, dMid)).pt;
         canvas.drawCircle(sh, 3.2 + 2.0 * tFrac, Paint()..color = const Color(0xFFFF2D55));
-      }
-
-      if (p >= 0.985) {
-        final lbl = tr(lang, '✕ ĐỨT GÃY KẾT THÚC (FRACTURE)', '✕ FRACTURE TERMINATED');
-        final tp = TextPainter(
-          text: TextSpan(text: lbl, style: const TextStyle(color: Colors.white, fontSize: 12.0, fontWeight: FontWeight.w900)),
-          textDirection: TextDirection.ltr,
-        )..layout();
-        final topAnchor = cam.project(_toWorld(sMid, halfH + 260, 0.0, dMid)).pt;
-        final r = RRect.fromRectAndRadius(
-          Rect.fromCenter(center: topAnchor, width: tp.width + 16, height: tp.height + 8),
-          const Radius.circular(6),
-        );
-        canvas.drawRRect(r, Paint()..color = const Color(0xFFDC2626).withValues(alpha: 0.94));
-        canvas.drawRRect(r, Paint()..color = const Color(0xFFFFD700)..style = PaintingStyle.stroke..strokeWidth = 1.5);
-        tp.paint(canvas, topAnchor - Offset(tp.width * 0.5, tp.height * 0.5));
       }
     }
   }

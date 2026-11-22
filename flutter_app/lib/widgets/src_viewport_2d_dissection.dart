@@ -50,6 +50,7 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
   bool _showConnectionOverlay = true;
   int _subMode = 0; // 0: Phòng thí nghiệm Tương tác Chi tiết Thép hình ↔ Bê tông | 1: Toàn cấu kiện 2D & Phẫu thuật tự do
   double _mag2D = 25.0; // Hệ số khuếch đại biến dạng trong chế độ toàn cấu kiện 2D
+  double? _overrideProg; // null = Tải thiết kế (N_Ed/M_Ed); khác null = mô phỏng Đàn hồi → Phi tuyến → Đứt gãy!
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +76,7 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
           _subModeBtn(
             active: _subMode == 0,
             icon: Icons.science_outlined,
-            label: tr(l, 'Mô phỏng Chi tiết Tương tác Thép hình ↔ Bê tông (4 Giai đoạn)', 'Detailed Steel–Concrete Interaction Lab (4 Stages)'),
+            label: tr(l, 'Mô phỏng Chi tiết Tương tác Thép hình ↔ Bê tông (5 Giai đoạn)', 'Detailed Steel–Concrete Interaction Lab (5 Stages)'),
             accent: const Color(0xFFF59E0B),
             fg: fg,
             border: border,
@@ -117,16 +118,102 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
     final bMax = g.sectionType == 'SRC_T_SLAB_H' ? g.bfSlabMm : g.bMm;
     final zClamped = _probeZMm.clamp(-0.5 * bMax, 0.5 * bMax);
 
-    final dis = SrcNonlinearEngine.dissectSection(res, widget.probeXNorm);
-    final probe = SrcNonlinearEngine.probePoint(res, widget.probeXNorm, yClamped, zClamped);
+    final dis = _overrideProg == null
+        ? SrcNonlinearEngine.dissectSection(res, widget.probeXNorm)
+        : SrcNonlinearEngine.dissectSectionAtUltimateFrac(res, widget.probeXNorm, _overrideProg!);
+    final probe = SrcNonlinearEngine.probePointOnDissection(res, dis, yClamped, zClamped);
+    final regime = SrcNonlinearEngine.classifySectionRegime(res, dis, progress: _overrideProg);
+    final th = regime.thresholds;
+    final pEl = (th.elasticProg * 0.55).clamp(0.05, 0.18);
+    final pNl = math.min(0.79, math.max(th.yieldProg, (th.yieldProg + th.peakProg) * 0.48));
+    final Color regimeCol = regime.regimeCode == 0
+        ? const Color(0xFF10B981)
+        : (regime.regimeCode == 1 ? const Color(0xFFF59E0B) : const Color(0xFFEF4444));
+    final String loadSym = isBeam ? 'P' : 'N';
 
     final bondColor = dis.bondStatusLevel == 2
         ? const Color(0xFFEF4444)
         : (dis.bondStatusLevel == 1 ? const Color(0xFFF59E0B) : const Color(0xFF10B981));
 
+    // Thanh chọn mức tải & hiển thị rõ vùng Đàn hồi / Vượt đàn hồi – Phi tuyến / Đứt gãy trong chế độ Phẫu thuật Tự do
+    final surgicalRegimeBar = Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: regimeCol.withValues(alpha: dark ? 0.14 : 0.08),
+        border: Border(bottom: BorderSide(color: regimeCol.withValues(alpha: 0.45))),
+      ),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 5,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: regimeCol.withValues(alpha: 0.22),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: regimeCol, width: 1.3),
+            ),
+            child: Text(
+              l.isVi ? regime.badgeVi : regime.badgeEn,
+              style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.w800, color: regimeCol),
+            ),
+          ),
+          Text(
+            tr(
+              l,
+              'Đàn hồi ≤ ${th.elasticLoadKn.toStringAsFixed(0)} | Phi tuyến ${th.elasticLoadKn.toStringAsFixed(0)}–${th.peakLoadKn.toStringAsFixed(0)} kN (${loadSym}_y=${th.yieldLoadKn.toStringAsFixed(0)}) | Đứt gãy sau ${loadSym}_u',
+              'Elastic ≤ ${th.elasticLoadKn.toStringAsFixed(0)} | Nonlinear ${th.elasticLoadKn.toStringAsFixed(0)}–${th.peakLoadKn.toStringAsFixed(0)} kN | Fracture post-${loadSym}_u',
+            ),
+            style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.w600, color: fg),
+          ),
+          for (final (lbl, progVal, col) in [
+            (tr(l, 'Tải TK', 'Design'), null, const Color(0xFF06B6D4)),
+            (tr(l, '● Đàn hồi', '● Elastic'), pEl, const Color(0xFF10B981)),
+            (tr(l, '▲ Phi tuyến', '▲ Nonlinear'), pNl, const Color(0xFFF59E0B)),
+            (tr(l, '◆ Cực hạn', '◆ Peak'), 0.83, const Color(0xFFF97316)),
+            (tr(l, '✕ Đứt gãy', '✕ Fracture'), 1.00, const Color(0xFFEF4444)),
+          ])
+            InkWell(
+              onTap: () => setState(() => _overrideProg = progVal),
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: ((progVal == null && _overrideProg == null) ||
+                          (progVal != null && _overrideProg != null && (_overrideProg! - progVal).abs() < 0.03))
+                      ? col.withValues(alpha: 0.24)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: ((progVal == null && _overrideProg == null) ||
+                            (progVal != null && _overrideProg != null && (_overrideProg! - progVal).abs() < 0.03))
+                        ? col
+                        : border,
+                  ),
+                ),
+                child: Text(
+                  lbl,
+                  style: TextStyle(
+                    fontSize: 12.0,
+                    fontWeight: FontWeight.bold,
+                    color: ((progVal == null && _overrideProg == null) ||
+                            (progVal != null && _overrideProg != null && (_overrideProg! - progVal).abs() < 0.03))
+                        ? col
+                        : fg.withValues(alpha: 0.78),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+
     return Column(
       children: [
         modeHeader,
+        surgicalRegimeBar,
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -214,6 +301,7 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
                         painter: _Longitudinal2DPainter(
                           result: res,
                           dis: dis,
+                          regime: regime,
                           probeXNorm: widget.probeXNorm,
                           magFactor: _mag2D,
                           darkMode: dark,
@@ -420,6 +508,8 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
                               painter: _SectionHeatmapPainter(
                                 result: res,
                                 dis: dis,
+                                regime: regime,
+                                probe: probe,
                                 field: widget.field,
                                 probeYMm: yClamped,
                                 probeZMm: zClamped,
@@ -625,6 +715,7 @@ class _SrcViewport2DDissectionState extends State<SrcViewport2DDissection> {
 class _Longitudinal2DPainter extends CustomPainter {
   final SrcAnalysisResult result;
   final DissectionResult dis;
+  final MechanicalRegimeState regime;
   final double probeXNorm;
   final double magFactor;
   final bool darkMode;
@@ -633,6 +724,7 @@ class _Longitudinal2DPainter extends CustomPainter {
   const _Longitudinal2DPainter({
     required this.result,
     required this.dis,
+    required this.regime,
     required this.probeXNorm,
     required this.magFactor,
     required this.darkMode,
@@ -841,23 +933,69 @@ class _Longitudinal2DPainter extends CustomPainter {
       );
     }
 
-    // 7. Vẽ vết nứt kéo bê tông tại vùng mô-men lớn (khi có nứt kéo)
+    // 7. Vẽ vết nứt kéo bê tông (Dầm) hoặc Bong vỏ / Đứt gãy cắt 45° (Cột ở vùng Phi tuyến / Đứt gãy)
     if (isBeam) {
-      final crP = Paint()..color = const Color(0xFFF43F5E)..strokeWidth = 1.2;
-      for (int c = 2; c <= 14; c++) {
-        final xn = c / 16.0;
-        final mRat = (result.profileMKnm[(xn * (nP - 1)).round().clamp(0, nP - 1)].abs() / maxM).clamp(0.0, 1.0);
-        if (mRat < 0.35) continue;
-        final xPx = padL + xn * plotW;
-        final yBot = yAtNorm(xn) + 0.5 * memH;
-        final crH = memH * 0.30 * mRat;
-        final crPath = Path()
-          ..moveTo(xPx, yBot)
-          ..lineTo(xPx + 2.2, yBot - crH * 0.45)
-          ..lineTo(xPx - 1.8, yBot - crH);
-        canvas.drawPath(crPath, crP);
+      if (regime.regimeCode >= 1) {
+        final crP = Paint()..color = const Color(0xFFF43F5E)..strokeWidth = regime.regimeCode == 2 ? 1.8 : 1.2;
+        for (int c = 2; c <= 14; c++) {
+          final xn = c / 16.0;
+          final mRat = (result.profileMKnm[(xn * (nP - 1)).round().clamp(0, nP - 1)].abs() / maxM).clamp(0.0, 1.0);
+          if (mRat < 0.35) continue;
+          final xPx = padL + xn * plotW;
+          final yBot = yAtNorm(xn) + 0.5 * memH;
+          final crH = memH * (regime.regimeCode == 2 ? 0.52 : 0.32) * mRat;
+          final crPath = Path()
+            ..moveTo(xPx, yBot)
+            ..lineTo(xPx + 2.2, yBot - crH * 0.45)
+            ..lineTo(xPx - 1.8, yBot - crH);
+          canvas.drawPath(crPath, crP);
+        }
+      }
+    } else if (regime.regimeCode >= 1) {
+      // Cột: Đánh dấu vùng vỏ nén phi tuyến / bong tách (GĐ4) & dải đứt gãy cắt chéo 45° (GĐ5)!
+      final xMidCol = padL + plotW * 0.5;
+      final yMidCol = yAtNorm(0.5);
+      if (regime.stage >= 4) {
+        final spP = Paint()..color = const Color(0xFFFF2D55)..style = PaintingStyle.stroke..strokeWidth = 1.6;
+        for (final side in [-1.0, 1.0]) {
+          final yEdge = yMidCol + side * 0.5 * memH;
+          final spPath = Path()
+            ..moveTo(xMidCol - 28, yEdge)
+            ..lineTo(xMidCol - 12, yEdge + side * 7)
+            ..lineTo(xMidCol + 8, yEdge + side * 4)
+            ..lineTo(xMidCol + 28, yEdge);
+          canvas.drawPath(spPath, spP);
+        }
+      }
+      if (regime.regimeCode == 2) {
+        final diag = Path()
+          ..moveTo(xMidCol - memH * 0.55, yMidCol - 0.52 * memH)
+          ..lineTo(xMidCol, yMidCol)
+          ..lineTo(xMidCol + memH * 0.55, yMidCol + 0.52 * memH);
+        canvas.drawPath(diag, Paint()..color = const Color(0xFF2A0410)..style = PaintingStyle.stroke..strokeWidth = 5.5);
+        canvas.drawPath(diag, Paint()..color = const Color(0xFFFFD700)..style = PaintingStyle.stroke..strokeWidth = 2.0);
       }
     }
+
+    // Nhãn tên Vùng Cơ Học (Đàn hồi / Vượt đàn hồi – Phi tuyến / Đứt gãy) trực tiếp trên đỉnh mô hình 2D
+    final Color rBg = regime.regimeCode == 0
+        ? const Color(0xFF047857)
+        : (regime.regimeCode == 1 ? const Color(0xFFB45309) : const Color(0xFFDC2626));
+    final Color rBrd = regime.regimeCode == 0 ? const Color(0xFF34D399) : const Color(0xFFFDE047);
+    final String rLbl = '${lang.isVi ? regime.badgeVi : regime.badgeEn} (${isBeam ? "P" : "N"}=${regime.loadKn.toStringAsFixed(0)} kN)';
+    final rtp = TextPainter(
+      text: TextSpan(text: rLbl, style: const TextStyle(color: Colors.white, fontSize: 12.0, fontWeight: FontWeight.w800)),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
+    )..layout(maxWidth: math.max(120.0, size.width - 20));
+    final rBox = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset(size.width * 0.5, 13), width: rtp.width + 14, height: rtp.height + 6),
+      const Radius.circular(6),
+    );
+    canvas.drawRRect(rBox, Paint()..color = rBg.withValues(alpha: 0.93));
+    canvas.drawRRect(rBox, Paint()..color = rBrd..style = PaintingStyle.stroke..strokeWidth = 1.4);
+    rtp.paint(canvas, Offset(size.width * 0.5 - rtp.width * 0.5, 13 - rtp.height * 0.5));
 
     // =========================================================================
     // PHẦN DƯỚI: BIỂU ĐỒ KÉP M_z(x) (CYAN) + DÒNG TRƯỢT LIÊN KẾT v_L(x) (AMBER)
@@ -898,10 +1036,10 @@ class _Longitudinal2DPainter extends CustomPainter {
 
     _drawTxt(
       canvas,
-      Offset(padL, botTop - 6),
-      'M_z(x) max=${maxM.toStringAsFixed(0)} kNm  |  ${tr(lang, "Trượt tiếp xúc v_L(x) tại x/L", "Interface flow v_L(x)")}=${dis.vInterfaceKnPerM.toStringAsFixed(0)} kN/m',
+      Offset(padL, botTop - 8),
+      'M_z=${maxM.toStringAsFixed(0)} kNm | v_L=${dis.vInterfaceKnPerM.toStringAsFixed(0)} kN/m',
       fg,
-      9.4,
+      12.0,
     );
 
     // Đường cắt phẫu thuật kéo được tại x/L
@@ -933,6 +1071,8 @@ class _Longitudinal2DPainter extends CustomPainter {
 class _SectionHeatmapPainter extends CustomPainter {
   final SrcAnalysisResult result;
   final DissectionResult dis;
+  final MechanicalRegimeState regime;
+  final ProbeResult probe;
   final ContourField field;
   final double probeYMm, probeZMm;
   final bool showConnectionOverlay;
@@ -942,6 +1082,8 @@ class _SectionHeatmapPainter extends CustomPainter {
   const _SectionHeatmapPainter({
     required this.result,
     required this.dis,
+    required this.regime,
+    required this.probe,
     required this.field,
     required this.probeYMm,
     required this.probeZMm,
@@ -1154,12 +1296,71 @@ class _SectionHeatmapPainter extends CustomPainter {
       Paint()..color = Colors.white..strokeWidth = 1.7,
     );
 
-    // 5. Con trỏ khảo sát (Crosshair Probe) tại (y, z)
+    // 5. Con trỏ khảo sát (Crosshair Probe) tại (y, z) + nhãn trạng thái điểm tức thời
     final pPx = Offset(cx + probeZMm * sc, cy - probeYMm * sc);
     final cP = Paint()..color = const Color(0xFFFFFFFF)..strokeWidth = 1.6;
     canvas.drawLine(pPx - const Offset(10, 0), pPx + const Offset(10, 0), cP);
     canvas.drawLine(pPx - const Offset(0, 10), pPx + const Offset(0, 10), cP);
     canvas.drawCircle(pPx, 5.2, Paint()..color = const Color(0xFF06B6D4)..style = PaintingStyle.stroke..strokeWidth = 2.0);
+
+    // 6. Nhãn vùng cơ học trực tiếp trên đỉnh mô hình phẫu thuật mặt cắt
+    final Color rBg = regime.regimeCode == 0
+        ? const Color(0xFF047857)
+        : (regime.regimeCode == 1 ? const Color(0xFFB45309) : const Color(0xFFDC2626));
+    final Color rBrd = regime.regimeCode == 0 ? const Color(0xFF34D399) : const Color(0xFFFDE047);
+    final String rTxt = regime.regimeCode == 0
+        ? tr(lang, '● VÙNG ĐÀN HỒI', '● ELASTIC')
+        : (regime.regimeCode == 1
+            ? tr(lang, '▲ VƯỢT ĐÀN HỒI – PHI TUYẾN', '▲ NONLINEAR')
+            : tr(lang, '✕ ĐỨT GÃY / PHÁ HOẠI', '✕ FRACTURE'));
+    final rtp = TextPainter(
+      text: TextSpan(text: rTxt, style: const TextStyle(color: Colors.white, fontSize: 12.0, fontWeight: FontWeight.w800)),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
+    )..layout(maxWidth: math.max(90.0, size.width - 12));
+    final rRect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset(size.width * 0.5, 13), width: rtp.width + 12, height: rtp.height + 5),
+      const Radius.circular(6),
+    );
+    canvas.drawRRect(rRect, Paint()..color = rBg.withValues(alpha: 0.93));
+    canvas.drawRRect(rRect, Paint()..color = rBrd..style = PaintingStyle.stroke..strokeWidth = 1.3);
+    rtp.paint(canvas, Offset(size.width * 0.5 - rtp.width * 0.5, 13 - rtp.height * 0.5));
+
+    // Nhãn nhỏ cạnh con trỏ khảo sát + dòng tóm tắt đáy mặt cắt
+    final pTag = regime.regimeCode == 2
+        ? tr(lang, 'Đứt gãy / Phá hoại', 'Fractured')
+        : (lang.isVi ? probe.stateVi : probe.stateEn);
+    final ptp = TextPainter(
+      text: TextSpan(text: pTag, style: const TextStyle(color: Colors.white, fontSize: 12.0, fontWeight: FontWeight.bold)),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
+    )..layout(maxWidth: math.max(70.0, size.width * 0.55));
+    final double pxLbl = (pPx.dx + 12 + ptp.width + 8 < size.width ? pPx.dx + 10 : pPx.dx - ptp.width - 18)
+        .clamp(4.0, math.max(4.0, size.width - ptp.width - 10));
+    final double pyLbl = (pPx.dy - ptp.height - 8).clamp(28.0, math.max(28.0, size.height - ptp.height - 24));
+    final pBox = RRect.fromRectAndRadius(
+      Rect.fromLTWH(pxLbl, pyLbl, ptp.width + 8, ptp.height + 4),
+      const Radius.circular(4),
+    );
+    canvas.drawRRect(pBox, Paint()..color = const Color(0xFF0F172A).withValues(alpha: 0.88));
+    canvas.drawRRect(pBox, Paint()..color = const Color(0xFF06B6D4)..style = PaintingStyle.stroke..strokeWidth = 1.0);
+    ptp.paint(canvas, Offset(pxLbl + 4, pyLbl + 2));
+
+    final botTxt = '${tr(lang, "Vỏ", "Cov")}: ${lang.isVi ? regime.coverStateVi : regime.coverStateEn} | ${tr(lang, "Thép H", "Steel")}: ${lang.isVi ? regime.steelStateVi : regime.steelStateEn}';
+    final btp = TextPainter(
+      text: TextSpan(text: botTxt, style: TextStyle(color: rBrd, fontSize: 12.0, fontWeight: FontWeight.bold)),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
+    )..layout(maxWidth: math.max(80.0, size.width - 10));
+    final bBox = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset(size.width * 0.5, size.height - 11), width: btp.width + 10, height: btp.height + 4),
+      const Radius.circular(5),
+    );
+    canvas.drawRRect(bBox, Paint()..color = const Color(0xFF060B18).withValues(alpha: 0.84));
+    btp.paint(canvas, Offset(size.width * 0.5 - btp.width * 0.5, size.height - 11 - btp.height * 0.5));
   }
 
   void _drawMiniArrow(Canvas c, Offset a, Offset b, Paint p) {

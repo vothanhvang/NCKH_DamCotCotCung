@@ -120,6 +120,8 @@ class _SrcInterfaceInteractionLabState extends State<SrcInterfaceInteractionLab>
 
     final dis = SrcNonlinearEngine.dissectSectionAtUltimateFrac(res, widget.probeXNorm, _progress);
     final fpNow = SrcNonlinearEngine.evaluateFailurePathPoint(res, _progress);
+    final regime = SrcNonlinearEngine.classifySectionRegime(res, dis, progress: _progress);
+    final th = regime.thresholds;
     final (pY, pZ) = _getActiveProbeCoords();
 
     // Khảo sát ĐỒNG THỜI 2 phía khe tiếp xúc (Phía Thép hình vs Phía Bê tông kề sát)
@@ -139,9 +141,12 @@ class _SrcInterfaceInteractionLabState extends State<SrcInterfaceInteractionLab>
     final fg = dark ? const Color(0xFFE2E8F0) : const Color(0xFF0F172A);
     final sub = dark ? const Color(0xFF94A3B8) : const Color(0xFF475569);
 
-    // 5 giai đoạn phá hoại đầy đủ (Đàn hồi → Nứt → Vượt đàn hồi/Phi tuyến → Cực hạn → Đứt gãy kết thúc)
-    final int stageIdx = fpNow.stage;
+    // 5 giai đoạn phá hoại + 3 vùng cơ học chuẩn (0: Đàn hồi | 1: Vượt đàn hồi – Phi tuyến | 2: Đứt gãy)
+    final int stageIdx = regime.stage;
     final bool isFractured = _progress >= 0.985;
+    final Color regimeColor = regime.regimeCode == 0
+        ? const Color(0xFF10B981)
+        : (regime.regimeCode == 1 ? const Color(0xFFF59E0B) : const Color(0xFFEF4444));
     final stageColor = switch (stageIdx) {
       1 => const Color(0xFF10B981),
       2 => const Color(0xFF38BDF8),
@@ -149,33 +154,11 @@ class _SrcInterfaceInteractionLabState extends State<SrcInterfaceInteractionLab>
       4 => const Color(0xFFF97316),
       _ => const Color(0xFFEF4444),
     };
-    final stageTitle = switch (stageIdx) {
-      1 => tr(l, 'GĐ1 (Đàn hồi): Bê tông chưa nứt, thép đàn hồi, dính bám hóa học nguyên vẹn (s ≈ 0)',
-          'Stage 1 (Elastic): Uncracked concrete, elastic steel, intact chemical bond'),
-      2 => isBeam
-          ? tr(l, 'GĐ2 (Nứt bê tông): Bê tông kéo vượt f_ct nứt chữ V — Đứt dính bám, kích hoạt đinh neo',
-              'Stage 2 (Cracking): Tension cracks open — Debonding, shear studs activated')
-          : tr(l, 'GĐ2 (Nứt vi mô): Tăng giãn nở ngang Poisson — Bắt đầu kiềm chế vòm thép H',
-              'Stage 2 (Micro-cracking): Poisson expansion initiates H-core confinement'),
-      3 => isBeam
-          ? tr(l, 'GĐ3 (Vượt đàn hồi → Phi tuyến): Cốt thép & cánh thép H vượt f_y chảy dẻo, đinh neo uốn chữ S',
-              'Stage 3 (Nonlinear Yielding): Rebar & H-flange yield past f_y, S-bending studs')
-          : tr(l, 'GĐ3 (Vượt đàn hồi → Phi tuyến): Thép hình chảy dẻo, kiềm chế 3 trục K_h tăng mạnh',
-              'Stage 3 (Nonlinear Plastic): Steel yields, strong triaxial confinement K_h'),
-      4 => isBeam
-          ? tr(l, 'GĐ4 (Cực hạn đỉnh tải): Đạt P_u — Vỏ bê tông nén vỡ bong tách, khớp dẻo mở rộng',
-              'Stage 4 (Peak Ultimate): Peak P_u reached — Compression cover crushes, plastic hinge')
-          : tr(l, 'GĐ4 (Cực hạn đỉnh tải): Đạt N_u — Vỏ bảo vệ ngoài bong vỡ, lõi thép H giữ tải K_h',
-              'Stage 4 (Peak Ultimate): Peak N_u — Outer cover spalls while H-core holds K_h'),
-      _ => isFractured
-          ? (isBeam
-              ? tr(l, '✕ GĐ5 (ĐỨT GÃY KẾT THÚC): Đứt cốt thép & cánh dưới thép H, cắt đứt đinh neo, vỡ nén hoàn toàn!',
-                  '✕ Stage 5 (FRACTURE TERMINATED): Rebar & flange rupture, stud shear-off, concrete crush!')
-              : tr(l, '✕ GĐ5 (ĐỨT GÃY KẾT THÚC): Bong toàn bộ vỏ, oằn cốt thép dọc & nứt cắt chéo 45° xuyên cột!',
-                  '✕ Stage 5 (FRACTURE TERMINATED): Complete cover spall, rebar buckling & 45° shear collapse!'))
-          : tr(l, 'GĐ5 (Nhánh suy giảm sau đỉnh → Đứt gãy): Tải tụt mạnh, trượt tăng vọt tiến tới đứt gãy!',
-              'Stage 5 (Post-Peak Softening → Fracture): Load drops rapidly toward rupture!'),
-    };
+    final double pS1 = (th.elasticProg * 0.55).clamp(0.05, 0.18);
+    final double pS2 = math.min(0.70, math.max(th.elasticProg + 0.04, (th.elasticProg + th.yieldProg) * 0.50));
+    final double pS3 = math.min(0.79, math.max(th.yieldProg, (th.yieldProg + th.peakProg) * 0.48));
+    final String loadSym = isBeam ? 'P' : 'N';
+    final stageTitle = '${l.isVi ? regime.badgeVi : regime.badgeEn} — ${l.isVi ? regime.criteriaVi : regime.criteriaEn}';
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -238,17 +221,17 @@ class _SrcInterfaceInteractionLabState extends State<SrcInterfaceInteractionLab>
                       ),
                     ),
                   ),
-                  // 5 nút chọn nhanh 5 giai đoạn vật lý
-                  for (final (lbl, val, col) in [
-                    (tr(l, 'GĐ1 Đàn hồi', 'S1 Elastic'), 0.14, const Color(0xFF10B981)),
-                    (tr(l, 'GĐ2 Nứt BT', 'S2 Crack'), 0.36, const Color(0xFF38BDF8)),
-                    (tr(l, 'GĐ3 Phi tuyến', 'S3 Nonlinear'), 0.62, const Color(0xFFF59E0B)),
-                    (tr(l, 'GĐ4 Cực hạn', 'S4 Peak'), 0.82, const Color(0xFFF97316)),
-                    (tr(l, 'GĐ5 Đứt gãy', 'S5 Fracture'), 1.00, const Color(0xFFEF4444)),
+                  // 5 nút chọn nhanh 5 giai đoạn vật lý (tính từ mốc FEM thực tế của Cột / Dầm!)
+                  for (final (lbl, val, col, stId) in [
+                    (tr(l, 'GĐ1 Đàn hồi', 'S1 Elastic'), pS1, const Color(0xFF10B981), 1),
+                    (tr(l, 'GĐ2 Nứt BT', 'S2 Crack'), pS2, const Color(0xFF38BDF8), 2),
+                    (tr(l, 'GĐ3 Phi tuyến', 'S3 Nonlinear'), pS3, const Color(0xFFF59E0B), 3),
+                    (tr(l, 'GĐ4 Cực hạn', 'S4 Peak'), 0.83, const Color(0xFFF97316), 4),
+                    (tr(l, 'GĐ5 Đứt gãy', 'S5 Fracture'), 1.00, const Color(0xFFEF4444), 5),
                   ])
                     _pillBtn(
                       lbl,
-                      stageIdx == SrcNonlinearEngine.failureStageOf(val),
+                      stageIdx == stId,
                       col,
                       fg,
                       border,
@@ -363,22 +346,84 @@ class _SrcInterfaceInteractionLabState extends State<SrcInterfaceInteractionLab>
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 5),
+              // Dải 3 mốc cơ học thực tế (Chạm để nhảy thẳng tới Đàn hồi / Vượt đàn hồi – Phi tuyến / Đứt gãy!)
+              Wrap(
+                spacing: 6,
+                runSpacing: 5,
+                children: [
+                  _regimeMilestoneChip(
+                    active: regime.regimeCode == 0,
+                    color: const Color(0xFF10B981),
+                    label: tr(
+                      l,
+                      '● VÙNG ĐÀN HỒI: 0 → ${th.elasticLoadKn.toStringAsFixed(0)} kN',
+                      '● ELASTIC: 0 → ${th.elasticLoadKn.toStringAsFixed(0)} kN',
+                    ),
+                    fg: fg,
+                    border: border,
+                    dark: dark,
+                    onTap: () {
+                      _animCtrl.stop();
+                      setState(() => _progress = pS1);
+                    },
+                  ),
+                  _regimeMilestoneChip(
+                    active: regime.regimeCode == 1,
+                    color: const Color(0xFFF59E0B),
+                    label: tr(
+                      l,
+                      '▲ VƯỢT ĐÀN HỒI – PHI TUYẾN: ${th.elasticLoadKn.toStringAsFixed(0)} → ${th.peakLoadKn.toStringAsFixed(0)} kN (${loadSym}_y=${th.yieldLoadKn.toStringAsFixed(0)} kN)',
+                      '▲ BEYOND ELASTIC – NONLINEAR: ${th.elasticLoadKn.toStringAsFixed(0)} → ${th.peakLoadKn.toStringAsFixed(0)} kN',
+                    ),
+                    fg: fg,
+                    border: border,
+                    dark: dark,
+                    onTap: () {
+                      _animCtrl.stop();
+                      setState(() => _progress = pS3);
+                    },
+                  ),
+                  _regimeMilestoneChip(
+                    active: regime.regimeCode == 2,
+                    color: const Color(0xFFEF4444),
+                    label: tr(
+                      l,
+                      '✕ ĐỨT GÃY: Sau đỉnh ${loadSym}_u=${th.peakLoadKn.toStringAsFixed(0)} → ${th.fractureLoadKn.toStringAsFixed(0)} kN',
+                      '✕ FRACTURE: Post-peak ${loadSym}_u=${th.peakLoadKn.toStringAsFixed(0)} → ${th.fractureLoadKn.toStringAsFixed(0)} kN',
+                    ),
+                    fg: fg,
+                    border: border,
+                    dark: dark,
+                    onTap: () {
+                      _animCtrl.stop();
+                      setState(() => _progress = 1.0);
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 5),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                 decoration: BoxDecoration(
-                  color: stageColor.withValues(alpha: dark ? (isFractured ? 0.25 : 0.15) : (isFractured ? 0.16 : 0.10)),
+                  color: regimeColor.withValues(alpha: dark ? (isFractured ? 0.25 : 0.16) : (isFractured ? 0.16 : 0.10)),
                   borderRadius: BorderRadius.circular(7),
-                  border: Border.all(color: stageColor.withValues(alpha: 0.6)),
+                  border: Border.all(color: regimeColor.withValues(alpha: 0.65)),
                 ),
                 child: Row(
                   children: [
-                    Icon(isFractured ? Icons.dangerous_outlined : Icons.auto_awesome, size: 16, color: stageColor),
+                    Icon(
+                      regime.regimeCode == 2
+                          ? Icons.dangerous_outlined
+                          : (regime.regimeCode == 1 ? Icons.trending_up : Icons.verified_outlined),
+                      size: 16,
+                      color: regimeColor,
+                    ),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         stageTitle,
-                        style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: stageColor),
+                        style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: regimeColor),
                       ),
                     ),
                   ],
@@ -421,6 +466,7 @@ class _SrcInterfaceInteractionLabState extends State<SrcInterfaceInteractionLab>
                   painter: _MicroInterfaceCutawayPainter(
                     result: res,
                     dis: dis,
+                    regime: regime,
                     progress: _progress,
                     loadKn: fpNow.loadKn,
                     magFactor: _magFactor,
@@ -516,6 +562,7 @@ class _SrcInterfaceInteractionLabState extends State<SrcInterfaceInteractionLab>
                         painter: _ConfinementInterfaceSectionPainter(
                           result: res,
                           dis: dis,
+                          regime: regime,
                           progress: _progress,
                           stageIdx: stageIdx,
                           magFactor: _magFactor,
@@ -607,7 +654,14 @@ class _SrcInterfaceInteractionLabState extends State<SrcInterfaceInteractionLab>
           fg: fg,
           child: CustomPaint(
             size: Size.infinite,
-            painter: _FailurePath5StagePainter(curve: _failureCurve, nowPt: fpNow, isBeam: isBeam, darkMode: dark, lang: l),
+            painter: _FailurePath5StagePainter(
+              curve: _failureCurve,
+              nowPt: fpNow,
+              regime: regime,
+              isBeam: isBeam,
+              darkMode: dark,
+              lang: l,
+            ),
           ),
         );
 
@@ -719,6 +773,39 @@ class _SrcInterfaceInteractionLabState extends State<SrcInterfaceInteractionLab>
     });
   }
 
+  Widget _regimeMilestoneChip({
+    required bool active,
+    required Color color,
+    required String label,
+    required Color fg,
+    required Color border,
+    required bool dark,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: active
+              ? color.withValues(alpha: dark ? 0.28 : 0.18)
+              : color.withValues(alpha: dark ? 0.08 : 0.05),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: active ? color : border, width: active ? 1.6 : 1.0),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12.0,
+            fontWeight: active ? FontWeight.w800 : FontWeight.w600,
+            color: active ? color : fg.withValues(alpha: 0.78),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _pillBtn(String txt, bool active, Color accent, Color fg, Color border, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
@@ -795,6 +882,7 @@ class _SrcInterfaceInteractionLabState extends State<SrcInterfaceInteractionLab>
 class _MicroInterfaceCutawayPainter extends CustomPainter {
   final SrcAnalysisResult result;
   final DissectionResult dis;
+  final MechanicalRegimeState regime;
   final double progress;
   final double loadKn;
   final double magFactor;
@@ -805,6 +893,7 @@ class _MicroInterfaceCutawayPainter extends CustomPainter {
   const _MicroInterfaceCutawayPainter({
     required this.result,
     required this.dis,
+    required this.regime,
     required this.progress,
     required this.loadKn,
     required this.magFactor,
@@ -839,21 +928,34 @@ class _MicroInterfaceCutawayPainter extends CustomPainter {
     canvas.drawRRect(box, Paint()..color = const Color(0xFF581C87).withValues(alpha: 0.78));
     tp.paint(canvas, Offset(size.width - tp.width - 9, 6));
 
-    // Dấu đóng mộc ĐỨT GÃY KẾT THÚC khi đạt 98.5%–100%
-    if (progress >= 0.985) {
-      final fTxt = tr(lang, '✕ ĐỨT GÃY KẾT THÚC', '✕ FRACTURE TERMINATED');
-      final ftp = TextPainter(
-        text: TextSpan(text: fTxt, style: const TextStyle(color: Colors.white, fontSize: 12.0, fontWeight: FontWeight.w900)),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      final fRect = RRect.fromRectAndRadius(
-        Rect.fromCenter(center: Offset(size.width * 0.5, 22), width: ftp.width + 18, height: ftp.height + 8),
-        const Radius.circular(6),
-      );
-      canvas.drawRRect(fRect, Paint()..color = const Color(0xFFDC2626).withValues(alpha: 0.94));
-      canvas.drawRRect(fRect, Paint()..color = const Color(0xFFFDE047)..style = PaintingStyle.stroke..strokeWidth = 1.6);
-      ftp.paint(canvas, Offset(size.width * 0.5 - ftp.width * 0.5, 22 - ftp.height * 0.5));
-    }
+    // =========================================================================
+    // NHÃN TÊN VÙNG CƠ HỌC TRỰC TIẾP TRÊN MÔ HÌNH PHÂN TÍCH (LUÔN HIỂN THỊ RÕ!)
+    //   • Xanh lá: ● TRONG VÙNG ĐÀN HỒI
+    //   • Cam vàng: ▲ VƯỢT ĐÀN HỒI – VÙNG PHI TUYẾN
+    //   • Đỏ viền vàng: ✕ ĐỨT GÃY – PHÁ HOẠI KẾT THÚC
+    // =========================================================================
+    final Color rBg = regime.regimeCode == 0
+        ? const Color(0xFF047857)
+        : (regime.regimeCode == 1 ? const Color(0xFFB45309) : const Color(0xFFDC2626));
+    final Color rBorder = regime.regimeCode == 0
+        ? const Color(0xFF34D399)
+        : (regime.regimeCode == 1 ? const Color(0xFFFDE047) : const Color(0xFFFDE047));
+    final String rTxt = lang.isVi ? regime.badgeVi : regime.badgeEn;
+    final rtp = TextPainter(
+      text: TextSpan(text: rTxt, style: const TextStyle(color: Colors.white, fontSize: 12.0, fontWeight: FontWeight.w900)),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
+    )..layout(maxWidth: math.max(120.0, size.width - tp.width - 36));
+    final double badgeCenterX = (size.width - tp.width - 18) * 0.5;
+    final double cxBadge = badgeCenterX.clamp(rtp.width * 0.5 + 10, math.max(rtp.width * 0.5 + 10, size.width - tp.width - rtp.width * 0.5 - 24));
+    final rRect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset(cxBadge, 16), width: rtp.width + 16, height: rtp.height + 7),
+      const Radius.circular(6),
+    );
+    canvas.drawRRect(rRect, Paint()..color = rBg.withValues(alpha: 0.94));
+    canvas.drawRRect(rRect, Paint()..color = rBorder..style = PaintingStyle.stroke..strokeWidth = 1.6);
+    rtp.paint(canvas, Offset(cxBadge - rtp.width * 0.5, 16 - rtp.height * 0.5));
   }
 
   void _paintBeamMicroInterface(Canvas canvas, Size size, Color fg) {
@@ -869,10 +971,10 @@ class _MicroInterfaceCutawayPainter extends CustomPainter {
     final tFrac = progress > 0.86 ? ((progress - 0.86) / 0.14).clamp(0.0, 1.0) : 0.0;
     final isFracturing = tFrac > 0.05;
 
-    final ySlabTop = h * 0.14;
-    final yFlTop = h * 0.43;
-    final tfH = h * 0.062;
-    final yFlBot = h * 0.70;
+    final ySlabTop = h * 0.21;
+    final yFlTop = h * 0.46;
+    final tfH = h * 0.060;
+    final yFlBot = h * 0.71;
     final yConcBot = h * 0.85;
 
     // Độ võng uốn cong (tăng vọt dạng khớp dẻo chữ V khi vào GĐ5 đứt gãy!)
@@ -1141,7 +1243,7 @@ class _MicroInterfaceCutawayPainter extends CustomPainter {
     }
 
     // 7. Chú thích rõ ràng (đồng nhất 12.0 px)
-    _drawTag(canvas, Offset(x0 + 2, 5),
+    _drawTag(canvas, Offset(x0 + 2, 32),
         isFracturing ? tr(lang, 'Vỡ nén bê tông đỉnh!', 'Top concrete crushed!') : tr(lang, '← Bê tông nén & Thanh chống 45°', '← Concrete & 45° Strut'),
         isFracturing ? const Color(0xFFFF4D6D) : const Color(0xFF38BDF8));
     _drawTag(canvas, Offset(x0 + 4, h - 18),
@@ -1157,11 +1259,12 @@ class _MicroInterfaceCutawayPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
     final cx = w * 0.5;
-    final colW = math.min(w * 0.64, 285.0);
+    final bool hasSideCallouts = w >= 420;
+    final colW = hasSideCallouts ? math.min(w * 0.36, 178.0) : math.min(w * 0.60, 235.0);
     final xL = cx - 0.5 * colW;
     final xR = cx + 0.5 * colW;
-    final yT0 = h * 0.14;
-    final yB0 = h * 0.85;
+    final yT0 = h * 0.22;
+    final yB0 = h * 0.84;
 
     final magGain = (magFactor / 25.0).clamp(0.04, 4.0);
     final magNorm = ((magFactor - 1.0) / 99.0).clamp(0.0, 1.0);
@@ -1275,9 +1378,9 @@ class _MicroInterfaceCutawayPainter extends CustomPainter {
       }
     }
 
-    // 6. Mũi tên tải nén N & Phản lực kiềm chế 3 trục
+    // 6. Mũi tên tải nén N (dưới banner chế độ cơ học) & Phản lực kiềm chế 3 trục
     for (final ax in [xL + coverW * 1.5, cx, xR - coverW * 1.5]) {
-      _drawArrow(canvas, Offset(ax, 6), Offset(ax, yT - 2), Paint()..color = const Color(0xFF38BDF8)..strokeWidth = 2.2);
+      _drawArrow(canvas, Offset(ax, 34), Offset(ax, math.max(46.0, yT - 2)), Paint()..color = const Color(0xFF38BDF8)..strokeWidth = 2.2);
     }
     final confLen = (9.0 + 12.0 * progress) * (0.7 + 0.65 * magNorm);
     for (int r = 0; r < 3; r++) {
@@ -1316,14 +1419,120 @@ class _MicroInterfaceCutawayPainter extends CustomPainter {
       canvas.drawPath(diag, Paint()..color = const Color(0xFFFFD700)..style = PaintingStyle.stroke..strokeWidth = 2.2);
     }
 
-    _drawTag(canvas, Offset(8, 4), '↓ N=${loadKn.toStringAsFixed(0)} kN', const Color(0xFF38BDF8));
-    _drawTag(canvas, Offset(8, h - 18),
-        isFracturing
-            ? tr(lang, 'ĐỨT GÃY: Oằn cốt thép dọc, bung đai & cắt chéo 45° xuyên cột!', 'FRACTURE: Rebar buckling, hoop rupture & 45° shear plane!')
-            : (spalling
-                ? tr(lang, 'Vỏ ngoài bong vỡ — Lõi thép H vẫn giữ tải K_h·f\'c!', 'Cover spalls — Confined H-Core holds K_h·f\'c!')
-                : tr(lang, 'Nở hông Poisson ↔ Cánh thép H ép kiềm chế 3 trục', 'Poisson bulging ↔ H-Flange triaxial confinement')),
-        isFracturing ? const Color(0xFFFFD700) : (spalling ? const Color(0xFFFF4D6D) : const Color(0xFFFDE047)));
+    // 8. Chú thích trực tiếp từng bộ phận Cột (Vỏ BT, Cốt thép, Thép H, Lõi H) với đường dẫn rõ nét
+    final th = regime.thresholds;
+    if (hasSideCallouts) {
+      final Color covTagCol = regime.regimeCode == 0
+          ? const Color(0xFF34D399)
+          : (spalling || isFracturing ? const Color(0xFFFF4D6D) : const Color(0xFFFBBF24));
+      final Color rbTagCol = regime.regimeCode == 0
+          ? const Color(0xFF34D399)
+          : (isFracturing ? const Color(0xFFFF4D6D) : (stageIdx >= 3 ? const Color(0xFFF59E0B) : const Color(0xFF38BDF8)));
+      final Color stTagCol = regime.regimeCode == 0
+          ? const Color(0xFF34D399)
+          : (isFracturing ? const Color(0xFFFF4D6D) : (stageIdx >= 3 ? const Color(0xFFF59E0B) : const Color(0xFF38BDF8)));
+      final Color coreTagCol = regime.regimeCode == 0
+          ? const Color(0xFF34D399)
+          : (isFracturing ? const Color(0xFFFFD700) : const Color(0xFFFDE047));
+
+      final double leftMaxW = math.max(92.0, xL - 18.0);
+      final double rightX = xR + 12.0;
+      final double rightMaxW = math.max(92.0, w - rightX - 6.0);
+      final double yU = yT + (yB - yT) * 0.24;
+      final double yD = yT + (yB - yT) * 0.68;
+
+      _drawSideCallout(
+        canvas,
+        anchor: Offset(xL - bulgePx * 0.3, yU),
+        boxOrigin: Offset(6, yU - 18),
+        maxW: leftMaxW,
+        alignRight: false,
+        title: tr(lang, 'Vỏ BT:', 'Cover:'),
+        value: lang.isVi ? regime.coverStateVi : regime.coverStateEn,
+        color: covTagCol,
+      );
+      _drawSideCallout(
+        canvas,
+        anchor: Offset(xL + coverW, yD),
+        boxOrigin: Offset(6, yD - 18),
+        maxW: leftMaxW,
+        alignRight: false,
+        title: tr(lang, 'Cốt thép:', 'Rebar:'),
+        value: lang.isVi ? regime.rebarStateVi : regime.rebarStateEn,
+        color: rbTagCol,
+      );
+      _drawSideCallout(
+        canvas,
+        anchor: Offset(stXR, yU),
+        boxOrigin: Offset(rightX, yU - 18),
+        maxW: rightMaxW,
+        alignRight: true,
+        title: tr(lang, 'Thép H:', 'Steel H:'),
+        value: lang.isVi ? regime.steelStateVi : regime.steelStateEn,
+        color: stTagCol,
+      );
+      _drawSideCallout(
+        canvas,
+        anchor: Offset(cx + flW * 0.6, yD),
+        boxOrigin: Offset(rightX, yD - 18),
+        maxW: rightMaxW,
+        alignRight: true,
+        title: tr(lang, 'Lõi H:', 'H-Core:'),
+        value: lang.isVi ? regime.coreStateVi : regime.coreStateEn,
+        color: coreTagCol,
+      );
+    }
+
+    _drawTag(canvas, Offset(8, 34), '↓ N=${loadKn.toStringAsFixed(0)} kN', const Color(0xFF38BDF8));
+    _drawTag(
+      canvas,
+      Offset(8, h - 18),
+      tr(
+        lang,
+        'Đàn hồi ≤ ${th.elasticLoadKn.toStringAsFixed(0)} | Chảy ${th.yieldLoadKn.toStringAsFixed(0)} | Đỉnh N_u=${th.peakLoadKn.toStringAsFixed(0)} kN → Đứt gãy',
+        'Elastic ≤ ${th.elasticLoadKn.toStringAsFixed(0)} | Yield ${th.yieldLoadKn.toStringAsFixed(0)} | Peak N_u=${th.peakLoadKn.toStringAsFixed(0)} kN',
+      ),
+      regime.regimeCode == 2
+          ? const Color(0xFFFFD700)
+          : (regime.regimeCode == 1 ? const Color(0xFFFBBF24) : const Color(0xFF34D399)),
+    );
+  }
+
+  void _drawSideCallout(
+    Canvas canvas, {
+    required Offset anchor,
+    required Offset boxOrigin,
+    required double maxW,
+    required bool alignRight,
+    required String title,
+    required String value,
+    required Color color,
+  }) {
+    final tp = TextPainter(
+      text: TextSpan(
+        style: const TextStyle(fontSize: 12.0, height: 1.2),
+        children: [
+          TextSpan(text: '$title\n', style: TextStyle(color: darkMode ? const Color(0xFFCBD5E1) : const Color(0xFF334155), fontWeight: FontWeight.w600)),
+          TextSpan(text: value, style: TextStyle(color: color, fontWeight: FontWeight.w800)),
+        ],
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 2,
+      ellipsis: '…',
+    )..layout(maxWidth: math.max(60.0, maxW - 10));
+    final rect = Rect.fromLTWH(boxOrigin.dx, boxOrigin.dy, math.min(maxW, tp.width + 10), tp.height + 6);
+    final edgePt = alignRight ? Offset(rect.left, rect.center.dy) : Offset(rect.right, rect.center.dy);
+    canvas.drawLine(edgePt, anchor, Paint()..color = color.withValues(alpha: 0.78)..strokeWidth = 1.25);
+    canvas.drawCircle(anchor, 2.8, Paint()..color = color);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, const Radius.circular(5)),
+      Paint()..color = (darkMode ? const Color(0xFF0B1325) : Colors.white).withValues(alpha: 0.88),
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, const Radius.circular(5)),
+      Paint()..color = color.withValues(alpha: 0.7)..style = PaintingStyle.stroke..strokeWidth = 1.0,
+    );
+    tp.paint(canvas, Offset(rect.left + 5, rect.top + 3));
   }
 
   void _drawDashed(Canvas c, Offset a, Offset b, Paint p) {
@@ -1363,6 +1572,7 @@ class _MicroInterfaceCutawayPainter extends CustomPainter {
 class _ConfinementInterfaceSectionPainter extends CustomPainter {
   final SrcAnalysisResult result;
   final DissectionResult dis;
+  final MechanicalRegimeState regime;
   final double progress;
   final int stageIdx;
   final double magFactor;
@@ -1374,6 +1584,7 @@ class _ConfinementInterfaceSectionPainter extends CustomPainter {
   const _ConfinementInterfaceSectionPainter({
     required this.result,
     required this.dis,
+    required this.regime,
     required this.progress,
     required this.stageIdx,
     required this.magFactor,
@@ -1562,6 +1773,48 @@ class _ConfinementInterfaceSectionPainter extends CustomPainter {
       )..layout();
       tp.paint(canvas, Offset(16, y));
     }
+
+    // Nhãn vùng cơ học trực tiếp trên mặt cắt phẫu thuật (góc trên phải)
+    final Color regBg = regime.regimeCode == 0
+        ? const Color(0xFF047857)
+        : (regime.regimeCode == 1 ? const Color(0xFFB45309) : const Color(0xFFDC2626));
+    final Color regBrd = regime.regimeCode == 0 ? const Color(0xFF34D399) : const Color(0xFFFDE047);
+    final String regLbl = regime.regimeCode == 0
+        ? tr(lang, '● VÙNG ĐÀN HỒI', '● ELASTIC')
+        : (regime.regimeCode == 1
+            ? tr(lang, '▲ VƯỢT ĐÀN HỒI – PHI TUYẾN', '▲ NONLINEAR')
+            : tr(lang, '✕ ĐỨT GÃY / PHÁ HOẠI', '✕ FRACTURE'));
+    final rtp = TextPainter(
+      text: TextSpan(text: regLbl, style: const TextStyle(color: Colors.white, fontSize: 12.0, fontWeight: FontWeight.w800)),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
+    )..layout(maxWidth: math.max(90.0, size.width - 125));
+    final rRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width - rtp.width - 14, 3, rtp.width + 12, rtp.height + 6),
+      const Radius.circular(6),
+    );
+    canvas.drawRRect(rRect, Paint()..color = regBg.withValues(alpha: 0.92));
+    canvas.drawRRect(rRect, Paint()..color = regBrd..style = PaintingStyle.stroke..strokeWidth = 1.4);
+    rtp.paint(canvas, Offset(size.width - rtp.width - 8, 6));
+
+    // Dòng trạng thái nhanh các vùng trên mặt cắt (đáy khung)
+    final stLine = '${tr(lang, "Vỏ", "Cov")}: ${lang.isVi ? regime.coverStateVi : regime.coverStateEn} | ${tr(lang, "Thép H", "Steel")}: ${lang.isVi ? regime.steelStateVi : regime.steelStateEn}';
+    final stp = TextPainter(
+      text: TextSpan(
+        text: stLine,
+        style: TextStyle(fontSize: 12.0, fontWeight: FontWeight.bold, color: regBrd),
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
+    )..layout(maxWidth: math.max(80.0, size.width - 16));
+    final sBg = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset(size.width * 0.5, size.height - 11), width: stp.width + 12, height: stp.height + 4),
+      const Radius.circular(5),
+    );
+    canvas.drawRRect(sBg, Paint()..color = (darkMode ? const Color(0xFF060B18) : const Color(0xFF0F172A)).withValues(alpha: 0.82));
+    stp.paint(canvas, Offset(size.width * 0.5 - stp.width * 0.5, size.height - 11 - stp.height * 0.5));
   }
 
   void _arrow(Canvas c, Offset a, Offset b, Paint p) {
@@ -1582,6 +1835,7 @@ class _ConfinementInterfaceSectionPainter extends CustomPainter {
 class _FailurePath5StagePainter extends CustomPainter {
   final List<FailurePathPoint> curve;
   final FailurePathPoint nowPt;
+  final MechanicalRegimeState regime;
   final bool isBeam;
   final bool darkMode;
   final AppLang lang;
@@ -1589,6 +1843,7 @@ class _FailurePath5StagePainter extends CustomPainter {
   const _FailurePath5StagePainter({
     required this.curve,
     required this.nowPt,
+    required this.regime,
     required this.isBeam,
     required this.darkMode,
     required this.lang,
@@ -1596,37 +1851,71 @@ class _FailurePath5StagePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    const padL = 50.0, padB = 26.0, padT = 18.0, padR = 14.0;
+    const padL = 50.0, padB = 26.0, padT = 22.0, padR = 14.0;
     final pw = math.max(30.0, size.width - padL - padR);
     final ph = math.max(30.0, size.height - padT - padB);
     final fg = darkMode ? const Color(0xFFCBD5E1) : const Color(0xFF334155);
     final grid = darkMode ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0);
     if (curve.length < 2) return;
 
+    final th = regime.thresholds;
     final maxDisp = math.max(1.0, curve.fold<double>(0.1, (a, b) => math.max(a, b.dispMm)) * 1.06);
-    final maxLoad = math.max(10.0, curve.fold<double>(1.0, (a, b) => math.max(a, b.loadKn)) * 1.12);
+    final maxLoad = math.max(10.0, curve.fold<double>(1.0, (a, b) => math.max(a, b.loadKn)) * 1.18);
     double xOf(double d) => padL + (d / maxDisp).clamp(0.0, 1.0) * pw;
     double yOf(double p) => padT + ph - (p / maxLoad).clamp(0.0, 1.0) * ph;
 
-    // 1. Tô nền 5 vùng giai đoạn (Đàn hồi | Nứt | Phi tuyến | Cực hạn | Suy giảm & Đứt gãy)
+    // Nội suy chuyển vị chính xác tại mốc tiến trình pr ∈ [0..1]
     double dispAtProg(double pr) {
-      final idx = (pr * (curve.length - 1)).round().clamp(0, curve.length - 1);
-      return curve[idx].dispMm;
+      final fIdx = pr.clamp(0.0, 1.0) * (curve.length - 1);
+      final i0 = fIdx.floor().clamp(0, curve.length - 2);
+      final t = fIdx - i0;
+      return curve[i0].dispMm * (1 - t) + curve[i0 + 1].dispMm * t;
     }
 
-    final bands = [
-      (0.0, 0.22, const Color(0xFF10B981)),
-      (0.22, 0.48, const Color(0xFF38BDF8)),
-      (0.48, 0.72, const Color(0xFFF59E0B)),
-      (0.72, 0.86, const Color(0xFFF97316)),
-      (0.86, 1.00, const Color(0xFFEF4444)),
+    final xEl = xOf(dispAtProg(th.elasticProg));
+    final xPeak = xOf(dispAtProg(th.peakProg));
+    final xEnd = xOf(curve.last.dispMm);
+
+    // 1. Tô nền rõ 3 VÙNG CƠ HỌC CHÍNH (Đàn hồi | Vượt đàn hồi – Phi tuyến | Đứt gãy ✕) + ghi tên rõ trong vùng!
+    final regions = [
+      (padL, xEl, const Color(0xFF10B981), tr(lang, 'ĐÀN HỒI', 'ELASTIC')),
+      (xEl, xPeak, const Color(0xFFF59E0B), tr(lang, 'PHI TUYẾN', 'NONLINEAR')),
+      (xPeak, xEnd, const Color(0xFFEF4444), tr(lang, 'ĐỨT GÃY ✕', 'FRACTURE')),
     ];
-    for (final (p0, p1, col) in bands) {
+    for (final (xa, xb, col, rName) in regions) {
+      if (xb <= xa + 1) continue;
       canvas.drawRect(
-        Rect.fromLTRB(xOf(dispAtProg(p0)), padT, xOf(dispAtProg(p1)), padT + ph),
-        Paint()..color = col.withValues(alpha: darkMode ? 0.11 : 0.08),
+        Rect.fromLTRB(xa, padT, xb, padT + ph),
+        Paint()..color = col.withValues(alpha: darkMode ? 0.14 : 0.09),
       );
+      final mid = (xa + xb) * 0.5;
+      final rtp = TextPainter(
+        text: TextSpan(text: rName, style: TextStyle(color: col, fontSize: 12.0, fontWeight: FontWeight.w800)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      if (xb - xa >= rtp.width + 4) {
+        rtp.paint(canvas, Offset(mid - rtp.width * 0.5, padT + 2));
+      }
     }
+
+    // Đường ranh giới nét đứt thẳng đứng đánh dấu chuyển vùng Đàn hồi → Phi tuyến (N_el) & Cực hạn → Đứt gãy (N_u)
+    void vDash(double x, Color col, String tag) {
+      double y = padT + 18;
+      final p = Paint()..color = col.withValues(alpha: 0.75)..strokeWidth = 1.2;
+      while (y < padT + ph) {
+        canvas.drawLine(Offset(x, y), Offset(x, math.min(padT + ph, y + 4)), p);
+        y += 7;
+      }
+      final tp = TextPainter(
+        text: TextSpan(text: tag, style: TextStyle(color: col, fontSize: 12.0, fontWeight: FontWeight.bold)),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(canvas, Offset((x - tp.width * 0.5).clamp(padL, padL + pw - tp.width), padT - 17));
+    }
+
+    final sym = isBeam ? 'P' : 'N';
+    vDash(xEl, const Color(0xFF10B981), '${sym}_el=${th.elasticLoadKn.toStringAsFixed(0)}');
+    vDash(xPeak, const Color(0xFFF97316), '${sym}_u=${th.peakLoadKn.toStringAsFixed(0)}');
 
     canvas.drawLine(Offset(padL, padT), Offset(padL, padT + ph), Paint()..color = grid..strokeWidth = 1.2);
     canvas.drawLine(Offset(padL, padT + ph), Offset(padL + pw, padT + ph), Paint()..color = grid..strokeWidth = 1.2);
@@ -1656,7 +1945,10 @@ class _FailurePath5StagePainter extends CustomPainter {
     if (activeStarted) activePath.lineTo(curOff.dx, curOff.dy);
 
     canvas.drawPath(fullPath, Paint()..color = fg.withValues(alpha: 0.35)..style = PaintingStyle.stroke..strokeWidth = 1.6);
-    canvas.drawPath(activePath, Paint()..color = const Color(0xFF06B6D4)..style = PaintingStyle.stroke..strokeWidth = 2.8);
+    final Color activeCol = regime.regimeCode == 0
+        ? const Color(0xFF10B981)
+        : (regime.regimeCode == 1 ? const Color(0xFFF59E0B) : const Color(0xFFEF4444));
+    canvas.drawPath(activePath, Paint()..color = activeCol..style = PaintingStyle.stroke..strokeWidth = 2.8);
 
     // 3. Dấu ✕ ĐỨT GÃY tại điểm cuối cùng của đường cong
     final endOff = Offset(xOf(curve.last.dispMm), yOf(curve.last.loadKn));
@@ -1664,15 +1956,15 @@ class _FailurePath5StagePainter extends CustomPainter {
     canvas.drawLine(endOff - const Offset(5, 5), endOff + const Offset(5, 5), xP);
     canvas.drawLine(endOff + const Offset(-5, 5), endOff + const Offset(5, -5), xP);
 
-    // 4. Chấm sáng động tại trạng thái hiện tại
-    canvas.drawCircle(curOff, 8.0, Paint()..color = const Color(0xFFF59E0B).withValues(alpha: 0.32));
-    canvas.drawCircle(curOff, 4.5, Paint()..color = nowPt.stage == 5 ? const Color(0xFFEF4444) : const Color(0xFFFFD700));
-    canvas.drawCircle(curOff, 4.5, Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 1.2);
+    // 4. Chấm sáng động tại trạng thái hiện tại + nhãn vùng hiện tại
+    canvas.drawCircle(curOff, 8.5, Paint()..color = activeCol.withValues(alpha: 0.32));
+    canvas.drawCircle(curOff, 4.8, Paint()..color = activeCol);
+    canvas.drawCircle(curOff, 4.8, Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 1.3);
 
     _txt(canvas, Offset(2, padT), isBeam ? 'P(kN)' : 'N(kN)', fg);
-    _txt(canvas, Offset(padL + 4, padT - 16), tr(lang, 'Đàn hồi→Nứt→Phi tuyến→Đứt ✕', 'Elast→Crack→Nonlin→Fail ✕'), const Color(0xFFF59E0B));
-    _txt(canvas, Offset(padL + pw * 0.22, padT + ph + 5),
-        '${isBeam ? "δ" : "Δ"}=${nowPt.dispMm.toStringAsFixed(1)} mm | ${nowPt.loadKn.toStringAsFixed(0)} kN', fg);
+    _txt(canvas, Offset(padL + pw * 0.12, padT + ph + 5),
+        '${isBeam ? "δ" : "Δ"}=${nowPt.dispMm.toStringAsFixed(1)} mm | $sym=${nowPt.loadKn.toStringAsFixed(0)} kN (${lang.isVi ? regime.shortVi : regime.shortEn})',
+        activeCol);
   }
 
   void _txt(Canvas c, Offset p, String s, Color col) {
