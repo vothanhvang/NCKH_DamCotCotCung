@@ -159,8 +159,8 @@ class SrcReportExporter {
             'NONLINEAR ANALYSIS & MULTI-CODE DESIGN REPORT — SRC COMPOSITE COLUMN');
     final instLine = tr(
       lang,
-      'Trường Đại học Bách Khoa - Đại học Quốc Gia TP. Hồ Chí Minh - Giảng viên hướng dẫn: PGS.TS Ngô Cường - Học viên thực hiện: Võ Thanh Vang (2670624) - Email: vothanhvang@gmail.com - Phone: 0973.993.494',
-      'Ho Chi Minh City University of Technology (VNU-HCM) - Advisor: Assoc. Prof. Dr. Ngo Cuong - Student: Vo Thanh Vang (2670624) - Email: vothanhvang@gmail.com - Phone: 0973.993.494',
+      'Trường Đại học Bách Khoa - Đại học Quốc Gia TP. Hồ Chí Minh - Giảng viên hướng dẫn: PGS.TS Ngô Hữu Cường - Học viên thực hiện: Võ Thanh Vang (2670624) - Email: vothanhvang@gmail.com - Phone: 0973.993.494',
+      'Ho Chi Minh City University of Technology (VNU-HCM) - Advisor: Assoc. Prof. Dr. Ngo Huu Cuong - Student: Vo Thanh Vang (2670624) - Email: vothanhvang@gmail.com - Phone: 0973.993.494',
     );
     final sub = tr(
       lang,
@@ -284,8 +284,8 @@ class SrcReportExporter {
             child: pw.Text(
               tr(
                 lang,
-                'Trường Đại học Bách Khoa - Đại học Quốc Gia TP. Hồ Chí Minh - Giảng viên hướng dẫn: PGS.TS Ngô Cường - Học viên thực hiện: Võ Thanh Vang (2670624) - Email: vothanhvang@gmail.com - Phone: 0973.993.494',
-                'Ho Chi Minh City University of Technology (VNU-HCM) - Advisor: Assoc. Prof. Dr. Ngo Cuong - Student: Vo Thanh Vang (2670624) - Email: vothanhvang@gmail.com - Phone: 0973.993.494',
+                'Trường Đại học Bách Khoa - Đại học Quốc Gia TP. Hồ Chí Minh - Giảng viên hướng dẫn: PGS.TS Ngô Hữu Cường - Học viên thực hiện: Võ Thanh Vang (2670624) - Email: vothanhvang@gmail.com - Phone: 0973.993.494',
+                'Ho Chi Minh City University of Technology (VNU-HCM) - Advisor: Assoc. Prof. Dr. Ngo Huu Cuong - Student: Vo Thanh Vang (2670624) - Email: vothanhvang@gmail.com - Phone: 0973.993.494',
               ),
               textAlign: pw.TextAlign.center,
               style: pw.TextStyle(font: fontBold, fontSize: 8.2, color: PdfColor.fromHex('#1E3A8A')),

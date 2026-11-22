@@ -1,7 +1,7 @@
 # SRC–CES Nonlinear Studio — Phân tích Phi tuyến, Thiết kế Đa Tiêu Chuẩn & Mô phỏng 2D/3D Dầm & Cột Bê Tông Cốt Cứng
 
 > **Trường Đại học Bách Khoa – Đại học Quốc Gia TP. Hồ Chí Minh**  
-> **Giảng viên hướng dẫn:** PGS.TS Ngô Cường  
+> **Giảng viên hướng dẫn:** PGS.TS Ngô Hữu Cường  
 > **Học viên thực hiện:** Võ Thanh Vang (`2670624`)  
 > **Email:** `vothanhvang@gmail.com` • **Phone:** `0973.993.494`  
 > **Đề tài:** Nghiên cứu Khoa học Cấp Quốc gia — Phân tích Phi tuyến & Thiết kế Kết cấu Bê tông Cốt cứng (Concrete-Encased Steel / Steel-Reinforced Concrete — SRC / CES)

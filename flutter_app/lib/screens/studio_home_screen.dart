@@ -231,8 +231,8 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
                         child: Text(
                           tr(
                             l,
-                            'Trường Đại học Bách Khoa - Đại học Quốc Gia TP. Hồ Chí Minh - Giảng viên hướng dẫn: PGS.TS Ngô Cường - Học viên thực hiện: Võ Thanh Vang (2670624) - Email: vothanhvang@gmail.com',
-                            'Ho Chi Minh City University of Technology (VNU-HCM) - Advisor: Assoc. Prof. Dr. Ngo Cuong - Student: Vo Thanh Vang (2670624) - Email: vothanhvang@gmail.com',
+                            'Trường Đại học Bách Khoa - Đại học Quốc Gia TP. Hồ Chí Minh - Giảng viên hướng dẫn: PGS.TS Ngô Hữu Cường - Học viên thực hiện: Võ Thanh Vang (2670624) - Email: vothanhvang@gmail.com',
+                            'Ho Chi Minh City University of Technology (VNU-HCM) - Advisor: Assoc. Prof. Dr. Ngo Huu Cuong - Student: Vo Thanh Vang (2670624) - Email: vothanhvang@gmail.com',
                           ),
                           textAlign: TextAlign.center,
                           softWrap: true,
@@ -964,7 +964,7 @@ class _StudioHomeScreenState extends State<StudioHomeScreen> with SingleTickerPr
             ),
             const SizedBox(height: 6),
             Text(
-              tr(l, 'Giảng viên hướng dẫn: PGS.TS Ngô Cường', 'Advisor: Assoc. Prof. Dr. Ngo Cuong'),
+              tr(l, 'Giảng viên hướng dẫn: PGS.TS Ngô Hữu Cường', 'Advisor: Assoc. Prof. Dr. Ngo Huu Cuong'),
               style: TextStyle(fontSize: 12.0, color: fg),
             ),
             const Divider(height: 18),

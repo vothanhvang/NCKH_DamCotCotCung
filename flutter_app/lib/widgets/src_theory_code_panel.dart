@@ -235,7 +235,7 @@ class SrcTheoryCodePanel extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  tr(l, 'Giảng viên hướng dẫn: PGS.TS Ngô Cường', 'Advisor: Assoc. Prof. Dr. Ngo Cuong'),
+                  tr(l, 'Giảng viên hướng dẫn: PGS.TS Ngô Hữu Cường', 'Advisor: Assoc. Prof. Dr. Ngo Huu Cuong'),
                   style: TextStyle(fontSize: 12.0, color: sub),
                 ),
                 const SizedBox(height: 4),

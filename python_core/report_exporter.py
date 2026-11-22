@@ -144,11 +144,11 @@ def _build_report_sections_data(analysis: Dict[str, object], lang: str = "vi") -
     )
     institution_line = (
         "Trường Đại học Bách Khoa - Đại học Quốc Gia TP. Hồ Chí Minh - "
-        "Giảng viên hướng dẫn: PGS.TS Ngô Cường - "
+        "Giảng viên hướng dẫn: PGS.TS Ngô Hữu Cường - "
         "Học viên thực hiện: Võ Thanh Vang (2670624) - Email: vothanhvang@gmail.com - Phone: 0973.993.494"
         if vi else
         "Ho Chi Minh City University of Technology (VNU-HCM) - "
-        "Advisor: Assoc. Prof. Dr. Ngo Cuong - "
+        "Advisor: Assoc. Prof. Dr. Ngo Huu Cuong - "
         "Student: Vo Thanh Vang (2670624) - Email: vothanhvang@gmail.com - Phone: 0973.993.494"
     )
     subtitle = (
